@@ -1,0 +1,26 @@
+Package: stepwedgepower
+Type: Package
+Title: Tools for Stepped-Wedge Clinical Trial Analysis and Power Simulation
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Amanda", family = "Li", role = c("aut", "cre"), email = "amandali14124277@egmail.com"),
+    person(given = "Florin", family = "Vaida", role = "aut",
+           comment = c(degree = "PhD"))
+  )
+Maintainer: Amanda (Lin) Li <amandali14124277@egmail.com>
+Description: Refactors an academic stepped-wedge clinical trial analysis script
+    into reusable functions for physician-level data preparation, specialty-level
+    rate modeling, and simulation-based power calculations with a random provider
+    effects. The package was designed to support Eli Lilly Lp(a) grant support and more
+    general stepped-wedge planning workflows.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: false
+Imports:
+    lme4
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
