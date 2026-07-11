@@ -1,7 +1,8 @@
 Package: stepwedgepower
 Type: Package
-Title: Stepped-Wedge Clinical Trial Analysis and Power Simulation
-Version: 0.1.1
+Title: Tools for Stepped-Wedge Clinical Trial Analysis and Power
+        Simulation
+Version: 0.2.0
 Authors@R: c(
     person(given = "Lin (Amanda)", family = "Li", role = c("aut", "cre"), email = "amandali14124277@gmail.com"),
     person(given = "Florin", family = "Vaida", role = "aut",
@@ -10,27 +11,26 @@ Authors@R: c(
 Maintainer: Lin (Amanda) Li <amandali14124277@gmail.com>
 Description: Provides reusable functions for aggregated cluster-period data,
     mixed-effects analysis, and simulation-based power and type I error
-    evaluation in stepped-wedge cluster randomized trials. The simulation engine
-    supports sequence-specific baseline risks, cluster random effects, direct
-    intraclass-correlation specification, Monte Carlo uncertainty intervals, and
-    model-fitting diagnostics. Applied physician and specialty helpers are
-    retained for backward compatibility and an example health-services workflow.
-    The design and mixed-effects analysis follow Hussey and Hughes (2007)
-    <doi:10.1016/j.cct.2006.05.007>. Intraclass correlations for binary outcomes
-    are converted to random-intercept standard deviations on the latent scale of
-    the logistic-normal model, as reviewed by Eldridge, Ukoumunne and Carlin
-    (2009) <doi:10.1111/j.1751-5823.2009.00092.x>. Monte Carlo uncertainty in
-    estimated power is reported using the exact interval of Clopper and Pearson
-    (1934) <doi:10.1093/biomet/26.4.404>, which retains nominal coverage when
-    the estimate approaches the boundary.
+    evaluation in stepped-wedge cluster randomized trials. Designs are specified
+    through structured objects supporting arbitrary crossover schedules, unequal
+    numbers of clusters per sequence, multiple baseline periods, secular trends,
+    and flexible cluster-period sizes. The design and mixed-effects analysis
+    follow Hussey and Hughes (2007) <doi:10.1016/j.cct.2006.05.007>. Intraclass
+    correlations for binary outcomes are converted to random-intercept standard
+    deviations on the latent scale of the logistic-normal model, as reviewed by
+    Eldridge, Ukoumunne and Carlin (2009)
+    <doi:10.1111/j.1751-5823.2009.00092.x>. Monte Carlo uncertainty in estimated
+    power is reported using the exact interval of Clopper and Pearson (1934)
+    <doi:10.1093/biomet/26.4.404>, which retains nominal coverage when the
+    estimate approaches the boundary.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-Imports: lme4
+Imports: lme4, lifecycle, graphics, stats
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2026-07-11 17:22:25 UTC; root
+Packaged: 2026-07-11 17:23:13 UTC; root
 Author: Lin (Amanda) Li [aut, cre],
   Florin Vaida [aut] (PhD)
