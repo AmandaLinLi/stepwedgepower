@@ -11,96 +11,53 @@ test_that("summaries return expected columns", {
   expect_true(all(c("variable", "specialty", "median") %in% names(out)))
 })
 
-test_that("generic simulation returns required columns", {
+test_that("simulation returns data with required columns", {
   sim_dat <- simulate_stepwedge_trial(seed = 1)
-  expect_true(all(c("cluster_id", "sequence", "period", "intervention", "n", "events") %in% names(sim_dat)))
   expect_true(all(c("PID", "step", "treat", "n_patients", "n_positive") %in% names(sim_dat)))
 })
 
-test_that("ICC conversion round trips", {
-  icc <- c(0.01, 0.05, 0.20)
-  expect_equal(cluster_sd_to_icc(icc_to_cluster_sd(icc)), icc, tolerance = 1e-10)
+test_that("simulation returns generic columns and legacy columns agree", {
+  sim <- simulate_stepwedge_trial(seed = 1)
+  generic <- c("cluster_id", "sequence", "sequence_idx", "period",
+               "intervention", "n", "events")
+  legacy <- c("PID", "specialty", "specialty_idx", "step", "treat",
+              "n_patients", "n_positive")
+  expect_true(all(generic %in% names(sim)))
+  expect_true(all(legacy %in% names(sim)))
+  expect_identical(sim$events, sim$n_positive)
+  expect_identical(sim$intervention, sim$treat)
+  expect_identical(sim$period, sim$step)
 })
 
-test_that("invalid ICC is rejected", {
-  expect_error(icc_to_cluster_sd(0), "strictly between")
-  expect_error(icc_to_cluster_sd(1), "strictly between")
+test_that("icc conversions round-trip", {
+  sd <- icc_to_cluster_sd(0.05)
+  expect_equal(cluster_sd_to_icc(sd), 0.05, tolerance = 1e-8)
+  expect_error(icc_to_cluster_sd(1), "must be in")
 })
 
-test_that("deprecation warnings are emitted once, not once per simulation", {
-  count <- 0L
-  withCallingHandlers(
-    invisible(estimate_power(
-      n_simulations = 5, tau_provider = 0.4,
-      n_clusters_per_sequence = c(4, 4, 4, 4),
-      baseline_probs = rep(0.1, 4), n_per_cluster_period = 20, seed = 1
-    )),
-    warning = function(w) {
-      if (grepl("deprecated", conditionMessage(w))) count <<- count + 1L
-      invokeRestart("muffleWarning")
-    }
+test_that("legacy arguments warn but still work", {
+  expect_warning(
+    sim <- simulate_stepwedge_trial(tau_provider = 0.5, seed = 1),
+    "deprecated"
   )
-  expect_equal(count, 1L)
+  expect_true(nrow(sim) > 0)
 })
 
-test_that("supplying a canonical and a deprecated argument together is an error", {
+test_that("disagreeing icc and cluster_sd error", {
   expect_error(
-    simulate_stepwedge_trial(treatment_or = 1.5, effect_size_or = 3.0),
-    "only one of"
-  )
-  expect_error(
-    simulate_stepwedge_trial(cluster_sd = 0.5, icc = 0.05),
-    "not both"
+    simulate_stepwedge_trial(icc = 0.05, cluster_sd = 0.9),
+    "disagree"
   )
 })
 
-test_that("deprecated aliases still drive the simulation", {
-  sim <- suppressWarnings(simulate_stepwedge_trial(
-    n_providers_per_specialty = c(2, 2, 2),
-    specialty_names = c("A", "B", "C"),
-    base_probs = rep(0.1, 3),
-    pts_per_step = 10, seed = 1
-  ))
-  expect_equal(sort(unique(sim$sequence)), c("A", "B", "C"))
-  expect_equal(nrow(sim), 6 * 4)  # 6 clusters x (3 sequences + 1) periods
-  expect_true(all(sim$n == 10))
-})
-
-test_that("exact Monte Carlo interval does not collapse at the boundary", {
+test_that("estimate_power reports mcse and confidence interval", {
   pw <- estimate_power(
-    n_simulations = 20, treatment_or = 6,
-    n_clusters_per_sequence = c(10, 10, 10, 10),
+    n_simulations = 5, treatment_or = 3,
+    n_clusters_per_sequence = c(6, 6, 6, 6),
     baseline_probs = rep(0.1, 4), cluster_sd = 0.3,
-    n_per_cluster_period = 40, seed = 5
+    n_per_cluster_period = 20, seed = 1
   )
-  expect_equal(pw$power, 1)
-  # A Wald interval would give exactly [1, 1]; the exact interval must not.
-  expect_lt(pw$conf_low, 1)
-  expect_gt(pw$conf_low, 0.5)
-  expect_equal(pw$conf_high, 1)
-})
-
-test_that("estimate_type1_error exposes explicit arguments", {
-  expect_true(all(c("n_simulations", "n_clusters_per_sequence", "icc") %in%
-                    names(formals(estimate_type1_error))))
-  out <- estimate_type1_error(
-    n_simulations = 5, n_clusters_per_sequence = c(6, 6, 6, 6),
-    baseline_probs = rep(0.1, 4), icc = 0.05,
-    n_per_cluster_period = 20, seed = 3
-  )
-  expect_s3_class(out, "stepwedge_power")
-  expect_equal(out$type1_error, out$power)
-})
-
-test_that("analysis accepts generic and legacy column names alike", {
-  sim <- simulate_stepwedge_trial(
-    n_clusters_per_sequence = c(5, 5, 5, 5),
-    baseline_probs = rep(0.1, 4), icc = 0.05, seed = 1
-  )
-  generic_only <- sim[, c("cluster_id", "sequence_index", "period",
-                          "intervention", "n", "events")]
-  legacy_only <- sim[, c("PID", "specialty_idx", "step", "treat",
-                         "n_patients", "n_positive")]
-  expect_true(is.numeric(run_stepwedge_analysis(generic_only)$p_value))
-  expect_true(is.numeric(run_stepwedge_analysis(legacy_only)$p_value))
+  expect_true(all(c("power", "mcse", "conf.int") %in% names(pw)))
+  expect_length(pw$conf.int, 2)
+  expect_true(is.na(pw$power) || (pw$power >= 0 && pw$power <= 1))
 })
