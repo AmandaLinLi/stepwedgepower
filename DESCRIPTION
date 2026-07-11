@@ -1,21 +1,23 @@
 Package: stepwedgepower
 Type: Package
-Title: Tools for Stepped-Wedge Clinical Trial Analysis and Power Simulation
-Version: 0.1.0
+Title: Stepped-Wedge Clinical Trial Analysis and Power Simulation
+Version: 0.1.1
 Authors@R: c(
-    person(given = "Amanda", family = "Li", role = c("aut", "cre"), email = "amandali14124277@egmail.com"),
+    person(given = "Lin (Amanda)", family = "Li", role = c("aut", "cre"), email = "amandali14124277@gmail.com"),
     person(given = "Florin", family = "Vaida", role = "aut",
            comment = c(degree = "PhD"))
   )
-Maintainer: Amanda (Lin) Li <amandali14124277@egmail.com>
-Description: Refactors an academic stepped-wedge clinical trial analysis script
-    into reusable functions for physician-level data preparation, specialty-level
-    rate modeling, and simulation-based power calculations with a random provider
-    effects. The package was designed to support Eli Lilly Lp(a) grant support and more
-    general stepped-wedge planning workflows.
+Maintainer: Lin (Amanda) Li <amandali14124277@gmail.com>
+Description: Provides reusable functions for aggregated cluster-period data,
+    mixed-effects analysis, and simulation-based power and type I error
+    evaluation in stepped-wedge cluster randomized trials. The simulation engine
+    supports sequence-specific baseline risks, cluster random effects, direct
+    intraclass-correlation specification, Monte Carlo uncertainty intervals, and
+    model-fitting diagnostics. Applied physician and specialty helpers are retained
+    for backward compatibility and an example health-services workflow.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: false
+Roxygen: list(markdown = TRUE)
 Imports:
     lme4
 Suggests:

@@ -1,11 +1,12 @@
 # stepwedgepower
 
-`stepwedgepower` refactors a one-off academic R script into a reusable R package for:
+`stepwedgepower` provides a general simulation-based workflow for stepped-wedge cluster randomized trials with aggregated binary outcomes. Version 0.1.1 adds:
 
-- physician-level data cleaning,
-- specialty-level binomial modeling,
-- stepped-wedge simulation, and
-- simulation-based power / type I error estimation.
+- generic cluster/sequence terminology,
+- direct ICC specification for logistic random-intercept models,
+- Monte Carlo standard errors and exact confidence intervals,
+- convergence, fit-failure, and singular-fit diagnostics, and
+- backward compatibility with the original physician/specialty interface.
 
 ## Project background
 
@@ -51,31 +52,24 @@ remotes::install_github("AmandaLinLi/stepwedgepower")
 ```r
 library(stepwedgepower)
 
-dat0 <- read.csv("data_pseudo_homeDPT.csv")
-dat <- prepare_physician_data(dat0)
-
-summary_tbl <- summarize_by_specialty(
-  dat,
-  vars = c("n_total_pat", "n_ldl_pat")
-)
-
-results <- analyze_lpa_outcomes(dat)
-
-results$overall$logit$glm_rates
-results$overall$logit$glmer_rates
-
 power_out <- estimate_power(
-  n_simulations = 500,
-  effect_size_or = 2.11,
-  n_providers_per_specialty = c(40, 40, 40, 40) * 0.25,
-  tau_provider = 1.21,
-  base_probs = c(0.05, 0.05, 0.05, 0.05),
-  pts_per_step = 50 / 5,
+  n_simulations = 1000,
+  treatment_or = 1.50,
+  n_clusters_per_sequence = c(10, 10, 10, 10),
+  sequence_names = paste0("Sequence ", 1:4),
+  baseline_probs = c(0.05, 0.05, 0.05, 0.05),
+  icc = 0.05,
+  n_per_cluster_period = 20,
   seed = 2026
 )
 
+power_out
 power_out$power
+power_out$mcse
+c(power_out$conf_low, power_out$conf_high)
 ```
+
+Version 0.1.0 argument names remain available with deprecation warnings.
 
 ## Example data
 
@@ -99,3 +93,19 @@ stepwedgepower/
   tests/
   .github/workflows/
 ```
+
+## Notes
+
+- The package is structured to be **GitHub-ready**.
+- I assumed an **MIT license** for convenience; you can change that before publishing.
+- The original external CSV files are not bundled here, so the package ships with synthetic example data only.
+- Because the current environment does not have an R runtime, this package scaffold was prepared carefully but not executed with `R CMD check` inside the container.
+
+## Suggested next steps before publishing
+
+1. Open the package locally in RStudio.
+2. Run `devtools::document()`.
+3. Run `devtools::check()`.
+4. Replace `YOUR_GITHUB_USERNAME` in `README.md`.
+5. Replace the maintainer email placeholder in `DESCRIPTION`.
+6. Commit and push to GitHub.
