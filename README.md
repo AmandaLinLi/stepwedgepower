@@ -107,11 +107,3 @@ stepwedgepower/
 - The original external CSV files are not bundled here, so the package ships with synthetic example data only.
 - Because the current environment does not have an R runtime, this package scaffold was prepared carefully but not executed with `R CMD check` inside the container.
 
-## Suggested next steps before publishing
-
-1. Open the package locally in RStudio.
-2. Run `devtools::document()`.
-3. Run `devtools::check()`.
-4. Replace `YOUR_GITHUB_USERNAME` in `README.md`.
-5. Replace the maintainer email placeholder in `DESCRIPTION`.
-6. Commit and push to GitHub.
