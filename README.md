@@ -1,7 +1,5 @@
 # stepwedgepower
 
-[![CRAN status](https://www.r-pkg.org/badges/version/stepwedgepower)](https://CRAN.R-project.org/package=stepwedgepower)
-[![R-CMD-check](https://github.com/AmandaLinLi/stepwedgepower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AmandaLinLi/stepwedgepower/actions)
 
 `stepwedgepower` provides simulation-based design evaluation for stepped-wedge
 cluster randomized trials with aggregated binary outcomes. It connects the
