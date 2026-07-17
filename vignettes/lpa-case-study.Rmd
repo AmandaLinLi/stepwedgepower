@@ -1,0 +1,153 @@
+---
+title: "Case study: an Lp(a) testing stepped-wedge trial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Case study: an Lp(a) testing stepped-wedge trial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(1)
+```
+
+This vignette works through the study that the package originally grew out of:
+a stepped-wedge trial of an intervention intended to raise lipoprotein(a)
+(Lp(a)) testing rates among physicians.
+
+It is worth being explicit about what is application-specific here and what is
+not. The *package* knows nothing about Lp(a), physicians, or specialties. It
+knows about clusters, sequences, periods, and aggregated binary outcomes. In
+this study the clusters happen to be physicians and the sequences happen to be
+specialties -- but a different trial could map schools onto clusters and
+districts onto sequences and use exactly the same functions.
+
+```{r setup}
+library(stepwedgepower)
+```
+
+## The applied vocabulary
+
+| Study concept | Package concept |
+|---|---|
+| Physician | cluster |
+| Specialty (Cardiology, ...) | sequence |
+| Study step | period |
+| Patients seen by a physician in a step | cluster-period sample size |
+| Patients with an Lp(a) test ordered | events |
+
+## Baseline data
+
+The package ships a small synthetic physician-level dataset. Real analyses would
+substitute their own extract with the same shape.
+
+```{r}
+physicians <- read_example_physician_data()
+str(physicians, max.level = 1)
+```
+
+`prepare_cluster_data()` is the generic filter: keep the groups of interest and
+trim clusters that are implausibly small or large. `prepare_physician_data()` is
+a thin application wrapper around it with the study's defaults.
+
+```{r}
+analysis_set <- prepare_physician_data(
+  physicians,
+  min_patients = 100,
+  max_patients = 10000
+)
+
+summarize_by_specialty(analysis_set, vars = "n_total_pat")
+```
+
+## Baseline testing rates by specialty
+
+Baseline rates differ substantially across specialties, which matters because
+the power of the trial depends on where each sequence starts. `fit_specialty_rate_model()`
+wraps the generic `fit_grouped_rate_model()`.
+
+```{r}
+rate_model <- fit_specialty_rate_model(
+  analysis_set,
+  successes = "n_lpa_pat",
+  trials = "n_total_pat",
+  specialty_var = "specialty",
+  provider_var = "prov_id",
+  random_intercept = TRUE
+)
+
+baseline_rates <- estimate_specialty_rates(rate_model, specialty_var = "specialty")
+baseline_rates[, c("specialty", "probability")]
+```
+
+The physician-level random-effect variance from this model is what we will carry
+into the power calculation as the cluster random effect. Expressed as an ICC:
+
+```{r}
+tau2 <- as.numeric(lme4::VarCorr(rate_model)$prov_id[1, 1])
+cluster_sd_to_icc(sqrt(tau2))
+```
+
+## Powering the trial
+
+Now the design. Four specialties cross over one at a time after a single
+baseline period, giving five periods.
+
+```{r}
+design <- sw_design(
+  clusters_per_sequence = c(30, 30, 30, 30),
+  crossover_period = c(2, 3, 4, 5),
+  n_periods = 5,
+  sequence_names = c("Cardiology", "Internal Medicine",
+                     "Family Medicine", "Neurology")
+)
+design
+```
+
+The assumptions carry the specialty-specific baseline rates estimated above, the
+target effect, and the ICC.
+
+```{r}
+assumptions <- sw_assumptions(
+  baseline_prob = c(0.06, 0.04, 0.03, 0.02),
+  treatment_or = 1.5,
+  icc = 0.05,
+  n_per_cluster_period = 20
+)
+assumptions
+```
+
+```{r, eval = FALSE}
+power <- power_swcrt(design, assumptions, nsim = 1000, seed = 1, n_cores = 4)
+summary(power)
+```
+
+## Sensitivity
+
+A single power number is rarely what a protocol needs. The effect size and the
+ICC are both assumptions, so vary them.
+
+```{r, eval = FALSE}
+grid <- power_grid(
+  design, assumptions,
+  vary = list(
+    treatment_or = c(1.3, 1.5, 1.75, 2.0),
+    icc = c(0.02, 0.05, 0.10)
+  ),
+  nsim = 500, n_cores = 4, seed = 1
+)
+summary(grid)
+plot(grid)
+```
+
+## A note on the analysis model
+
+`fit_stepwedge_model()` does not adjust for sequence by default. In a
+stepped-wedge trial each cluster sits in exactly one sequence for the whole
+study, so sequence is a cluster-level attribute that the cluster random
+intercept already absorbs. Adding `factor(sequence)` as a fixed effect is close
+to redundant, and in this design it measurably lowers power and raises the rate
+of singular fits. The baseline rates still differ by specialty -- that
+information enters through `baseline_prob`, where it belongs, rather than
+through an extra fixed effect in the analysis.

@@ -20,6 +20,9 @@
 #' @param nAGQ Quadrature points for the analysis model.
 #' @param analysis_args Optional named list of extra arguments to
 #'   [fit_stepwedge_model()] (e.g. `period_effect`, `adjust_sequence`).
+#' @param n_cores Number of cores. `1` runs serially. Results are reproducible
+#'   under a given `seed` regardless of `n_cores`, because each replicate is
+#'   assigned its own L'Ecuyer-CMRG random-number stream.
 #' @param seed Optional seed.
 #'
 #' @return An object of class `"sw_power"`.
@@ -41,6 +44,7 @@ power_swcrt <- function(
   fit_link = c("logit", "identity"),
   nAGQ = 1,
   analysis_args = list(),
+  n_cores = 1,
   seed = NULL
 ) {
   if (!inherits(design, "sw_design")) {
@@ -50,27 +54,27 @@ power_swcrt <- function(
     stop("`assumptions` must be an sw_assumptions object.", call. = FALSE)
   }
   fit_link <- match.arg(fit_link)
-  if (!is.null(seed)) set.seed(seed)
-
-  p_values <- rep(NA_real_, nsim)
-  estimates <- rep(NA_real_, nsim)
-  ses <- rep(NA_real_, nsim)
-  converged <- rep(NA, nsim)
-  singular <- rep(NA, nsim)
 
   true_effect <- assumptions$treatment_effect
   z <- stats::qnorm(1 - alpha / 2)
 
-  for (i in seq_len(nsim)) {
+  one_rep <- function(i) {
     sim <- simulate_swcrt(design, assumptions)
     res <- do.call(fit_stepwedge_model,
                    c(list(data = sim, link = fit_link, nAGQ = nAGQ), analysis_args))
-    p_values[i] <- res$p_value
-    estimates[i] <- res$estimate
-    ses[i] <- res$std_error
-    converged[i] <- isTRUE(res$converged)
-    singular[i] <- isTRUE(res$singular)
+    list(
+      p = res$p_value, est = res$estimate, se = res$std_error,
+      conv = isTRUE(res$converged), sing = isTRUE(res$singular)
+    )
   }
+
+  reps <- .simulate_replicates(one_rep, nsim, n_cores = n_cores, seed = seed)
+
+  p_values <- vapply(reps, function(r) r$p, numeric(1))
+  estimates <- vapply(reps, function(r) r$est, numeric(1))
+  ses <- vapply(reps, function(r) r$se, numeric(1))
+  converged <- vapply(reps, function(r) r$conv, logical(1))
+  singular <- vapply(reps, function(r) r$sing, logical(1))
 
   ok <- !is.na(p_values)
   n_successful <- sum(ok)
@@ -175,4 +179,65 @@ plot.sw_power <- function(x, ...) {
   graphics::legend("topright", legend = c("true effect", "mean estimate"),
                    col = c("red", "blue"), lty = c(2, 1), lwd = 2, bty = "n")
   invisible(x)
+}
+
+# Run `nsim` replicates of `fun`, serially or in parallel.
+#
+# Reproducibility does not depend on `n_cores`: each replicate is given its own
+# L'Ecuyer-CMRG substream, so the i-th replicate sees the same random numbers
+# whether it runs on one core or many. This matters because a power estimate
+# that shifts when you add cores is not a power estimate anyone can cite.
+.simulate_replicates <- function(fun, nsim, n_cores = 1, seed = NULL) {
+  n_cores <- max(1L, as.integer(n_cores))
+
+  if (is.null(seed)) {
+    if (n_cores == 1L) return(lapply(seq_len(nsim), fun))
+    return(.par_lapply(seq_len(nsim), fun, n_cores))
+  }
+
+  # Pre-compute one RNG stream per replicate from the user's seed.
+  old_kind <- RNGkind()[1]
+  old_seed <- if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+    get(".Random.seed", envir = globalenv())
+  } else {
+    NULL
+  }
+  on.exit({
+    RNGkind(old_kind)
+    if (!is.null(old_seed)) assign(".Random.seed", old_seed, envir = globalenv())
+  }, add = TRUE)
+
+  RNGkind("L'Ecuyer-CMRG")
+  set.seed(seed)
+  streams <- vector("list", nsim)
+  s <- .Random.seed
+  for (i in seq_len(nsim)) {
+    streams[[i]] <- s
+    s <- parallel::nextRNGStream(s)
+  }
+
+  run_i <- function(i) {
+    assign(".Random.seed", streams[[i]], envir = globalenv())
+    fun(i)
+  }
+
+  if (n_cores == 1L) {
+    return(lapply(seq_len(nsim), run_i))
+  }
+  .par_lapply(seq_len(nsim), run_i, n_cores)
+}
+
+.par_lapply <- function(x, fun, n_cores) {
+  n_cores <- min(n_cores, length(x))
+  available <- parallel::detectCores(logical = FALSE)
+  if (!is.na(available)) n_cores <- min(n_cores, available)
+  if (n_cores <= 1L) return(lapply(x, fun))
+
+  if (.Platform$OS.type != "windows") {
+    return(parallel::mclapply(x, fun, mc.cores = n_cores))
+  }
+  cl <- parallel::makeCluster(n_cores)
+  on.exit(parallel::stopCluster(cl), add = TRUE)
+  parallel::clusterEvalQ(cl, requireNamespace("stepwedgepower", quietly = TRUE))
+  parallel::parLapply(cl, x, fun)
 }

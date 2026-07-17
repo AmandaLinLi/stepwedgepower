@@ -10,6 +10,7 @@ power_swcrt(
   fit_link = c("logit", "identity"),
   nAGQ = 1,
   analysis_args = list(),
+  n_cores = 1,
   seed = NULL
 )
 }
@@ -27,6 +28,8 @@ power_swcrt(
 \item{nAGQ}{Number of adaptive Gauss-Hermite quadrature points.}
 
 \item{analysis_args}{Optional named list of extra arguments to [fit_stepwedge_model()].}
+
+\item{n_cores}{Number of cores. \code{1} runs serially. Results are reproducible under a given \code{seed} regardless of \code{n_cores}, because each replicate is assigned its own L'Ecuyer-CMRG random-number stream.}
 
 \item{seed}{Optional random seed.}
 }

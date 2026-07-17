@@ -4,10 +4,18 @@
 #' model is fully configurable through variable names, or a user-supplied
 #' `formula`, and does not depend on any application-specific column names.
 #'
-#' The default model is treatment plus a period effect plus an optional sequence
-#' adjustment plus a cluster random intercept:
-#' `cbind(events, n - events) ~ intervention + factor(period) +
-#'   factor(sequence) + (1 | cluster_id)`.
+#' The default model is the standard Hussey-Hughes specification: treatment,
+#' a categorical period effect, and a cluster random intercept,
+#' `cbind(events, n - events) ~ intervention + factor(period) + (1 | cluster_id)`.
+#'
+#' `adjust_sequence` defaults to `FALSE`. In a stepped-wedge design a cluster
+#' belongs to exactly one sequence for the whole trial, so sequence is a
+#' cluster-level attribute and is already absorbed by the cluster random
+#' intercept. Adding `factor(sequence)` as a fixed effect is close to redundant:
+#' it spends degrees of freedom, raises the rate of singular fits, and
+#' measurably lowers power. Set it to `TRUE` only if the sequences differ in a
+#' way that is not captured by the random intercept and you specifically want to
+#' condition on it.
 #'
 #' @param data Aggregated cluster-period data (e.g. from [simulate_swcrt()]).
 #' @param formula Optional model formula. If supplied, the variable-name and
@@ -17,7 +25,8 @@
 #' @param period Name of the period column.
 #' @param cluster Name of the cluster identifier (random-effect grouping) column.
 #' @param sequence Name of the sequence column (used when `adjust_sequence`).
-#' @param adjust_sequence Logical; include a fixed sequence adjustment.
+#' @param adjust_sequence Logical; include a fixed sequence adjustment. Defaults
+#'   to `FALSE`; see Details.
 #' @param period_effect One of `"categorical"`, `"linear"`, or `"none"`.
 #' @param link Binomial link, `"logit"` or `"identity"`.
 #' @param nAGQ Number of adaptive Gauss-Hermite quadrature points.
@@ -42,7 +51,7 @@ fit_stepwedge_model <- function(
   period = "period",
   cluster = "cluster_id",
   sequence = "sequence",
-  adjust_sequence = TRUE,
+  adjust_sequence = FALSE,
   period_effect = c("categorical", "linear", "none"),
   link = c("logit", "identity"),
   nAGQ = 1

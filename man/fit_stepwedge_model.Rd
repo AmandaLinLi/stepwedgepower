@@ -10,7 +10,7 @@ fit_stepwedge_model(
   period = "period",
   cluster = "cluster_id",
   sequence = "sequence",
-  adjust_sequence = TRUE,
+  adjust_sequence = FALSE,
   period_effect = c("categorical", "linear", "none"),
   link = c("logit", "identity"),
   nAGQ = 1
