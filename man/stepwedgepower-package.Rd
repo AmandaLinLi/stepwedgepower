@@ -19,7 +19,8 @@ failure-aware operating characteristics.
 
 Authors:
 \itemize{
-  \item Florin Vaida (PhD)
+  \item Lin (Amanda) Li \email{amandali14124277@gmail.com}
+  \item Florin Vaida (degree: PhD)
 }
 
 }
