@@ -1,6 +1,7 @@
 Package: stepwedgepower
 Type: Package
-Title: Simulation-Based Power Evaluation for Stepped-Wedge Cluster Randomized Trials
+Title: Simulation-Based Power Evaluation for Stepped-Wedge Cluster
+        Randomized Trials
 Version: 0.3.0
 Authors@R: c(
     person(given = "Lin (Amanda)", family = "Li", role = c("aut", "cre"),
@@ -34,6 +35,9 @@ Imports: lme4, lifecycle, graphics, grDevices, stats, parallel, utils
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown, swdpwr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-Config/roxygen2/version: 7.3.2
+Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-RoxygenNote: 7.3.2
+Packaged: 2026-07-17 16:07:16 UTC; amandalinli
+Author: Lin (Amanda) Li [aut, cre],
+  Florin Vaida [aut] (degree: PhD)
+Maintainer: Lin (Amanda) Li <amandali14124277@gmail.com>

@@ -1,0 +1,197 @@
+---
+title: "Designing a stepped-wedge trial"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Designing a stepped-wedge trial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(1)
+```
+
+```{r setup}
+library(stepwedgepower)
+```
+
+A stepped-wedge trial assigns clusters to *sequences*. Every sequence starts
+under control; sequences then cross over to the intervention at different
+periods, and once a sequence has crossed it stays crossed. By the end of the
+trial every cluster has received the intervention.
+
+The package encodes exactly that and nothing more. A cluster can be a hospital
+ward, a clinic, a school, a general practice, a village, or an individual
+clinician; a sequence can be a region, a wave, a specialty, or an arbitrary
+randomisation group. The software does not care.
+
+Design and assumptions are kept apart, because they answer different questions:
+
+* [`sw_design()`] -- **who** crosses over, and **when**.
+* [`sw_assumptions()`] -- **what** the outcome is expected to do.
+
+## The design
+
+The most common design gives one baseline period and then crosses one sequence
+per period.
+
+```{r}
+design <- sw_design(
+  clusters_per_sequence = c(8, 8, 8, 8),
+  crossover_period = c(2, 3, 4, 5),
+  n_periods = 5
+)
+design
+```
+
+Designs are not restricted to that shape. Sequences may hold unequal numbers of
+clusters, several sequences may cross at once, and there may be more than one
+baseline period. Anything expressible as a 0/1 schedule is expressible here:
+
+```{r}
+schedule <- matrix(
+  c(0, 0, 1, 1, 1,
+    0, 0, 0, 1, 1,
+    0, 0, 0, 0, 1),
+  nrow = 3, byrow = TRUE
+)
+
+custom <- sw_design(
+  clusters_per_sequence = c(8, 10, 12),  # unequal
+  treatment = schedule                   # two baseline periods
+)
+custom
+```
+
+## The assumptions
+
+```{r}
+assumptions <- sw_assumptions(
+  baseline_prob = 0.05,     # control-arm risk
+  treatment_or = 1.6,       # target effect
+  icc = 0.05,               # cluster correlation
+  period_effects = c(0, 0.05, 0.10, 0.15, 0.20),  # secular trend, log-odds
+  n_per_cluster_period = 20
+)
+assumptions
+```
+
+Three points worth drawing out.
+
+**Specify the ICC, not the random-effect SD.** Most people can defend an ICC and
+almost nobody can defend a random-intercept standard deviation. Supply `icc` and
+the conversion is handled; supply `cluster_sd` if you prefer. Supplying both is
+an error unless they agree.
+
+```{r}
+icc_to_cluster_sd(0.05)
+cluster_sd_to_icc(0.4161)
+```
+
+**Model the secular trend explicitly.** Outcomes often drift over time for
+reasons unrelated to the intervention. In a stepped-wedge design time and
+treatment are partially confounded by construction, so a trend you do not
+simulate is a trend you have not accounted for. `period_effects` puts it in the
+generating model, where the analysis has to contend with it.
+
+**Cluster sizes need not be equal.** Supply a single number, a
+sequence-by-period matrix, or a function:
+
+```{r}
+variable_size <- sw_assumptions(
+  baseline_prob = 0.05, treatment_or = 1.6, icc = 0.05,
+  n_per_cluster_period = function(n) rpois(n, lambda = 20) + 1
+)
+trial <- simulate_swcrt(design, variable_size, seed = 1)
+range(trial$n)
+```
+
+## Simulating and analysing one trial
+
+```{r}
+trial <- simulate_swcrt(design, assumptions, seed = 123)
+head(trial)
+```
+
+The columns are deliberately neutral: `cluster_id`, `sequence`, `period`,
+`intervention`, `n`, `events`. Any aggregated cluster-period dataset in this
+shape can be fed to the analysis function, whether it came from
+`simulate_swcrt()` or from a real trial.
+
+```{r}
+fit <- analyze_swcrt(trial)
+fit$estimate    # log-odds
+fit$p_value
+```
+
+The default analysis is the standard Hussey-Hughes model: treatment, a
+categorical period effect, and a cluster random intercept. You can rename any
+column, or hand over a formula outright:
+
+```{r, eval = FALSE}
+fit_stepwedge_model(
+  trial,
+  formula = cbind(events, n - events) ~ intervention + factor(period) +
+    (1 | cluster_id)
+)
+```
+
+## Power
+
+```{r, eval = FALSE}
+power <- power_swcrt(design, assumptions, nsim = 1000, seed = 1, n_cores = 4)
+summary(power)
+plot(power)
+```
+
+The returned object reports more than a single number, and the extras are not
+decoration. The Monte Carlo interval tells you how much of the estimate is
+simulation noise. The failure and singular-fit rates tell you whether the
+analysis model is actually estimable at this design size -- a "power" computed
+from replicates that mostly failed to converge is not a power. Bias and coverage
+tell you whether the estimator is behaving.
+
+The interval for power is exact (Clopper-Pearson) rather than Wald. A Wald
+interval collapses to zero width when the estimate hits 0 or 1, which is exactly
+the high-power regime a power analysis is trying to land in.
+
+## Sensitivity
+
+Power depends on assumptions you cannot verify in advance, so vary them.
+
+```{r, eval = FALSE}
+grid <- power_grid(
+  design, assumptions,
+  vary = list(
+    treatment_or = c(1.3, 1.5, 1.75, 2.0),
+    icc = c(0.02, 0.05, 0.10),
+    clusters_per_sequence = list(c(6, 6, 6, 6), c(8, 8, 8, 8), c(10, 10, 10, 10))
+  ),
+  nsim = 500, n_cores = 4, seed = 1
+)
+summary(grid)
+plot(grid)
+```
+
+Simulations are reproducible under a given `seed` regardless of `n_cores`: each
+replicate draws from its own random-number stream, so adding cores makes the run
+faster without moving the answer.
+
+## Checking the engine
+
+`validate_engine()` re-runs the power calculation with an independently written
+reference implementation that shares no code with the main engine, and reports
+whether the two agree within Monte Carlo error.
+
+```{r, eval = FALSE}
+validate_engine(design, assumptions, nsim = 500, seed = 1)
+```
+
+`compare_with_swdpwr()` will also line the simulation up against a closed-form
+calculation, if you have that package installed. Treat the result as information
+rather than as a target: closed-form stepped-wedge power is asymptotic in the
+number of clusters, and with the small cluster counts these trials usually run
+it can report power well above what a simulated trial achieves. Where the two
+disagree, the simulation is the one that reflects the model you will actually
+fit.
