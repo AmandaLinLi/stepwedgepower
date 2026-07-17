@@ -1,109 +1,136 @@
 # stepwedgepower
 
-`stepwedgepower` refactors a one-off academic R script into a reusable R package for:
+[![CRAN status](https://www.r-pkg.org/badges/version/stepwedgepower)](https://CRAN.R-project.org/package=stepwedgepower)
+[![R-CMD-check](https://github.com/AmandaLinLi/stepwedgepower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AmandaLinLi/stepwedgepower/actions)
 
-- physician-level data cleaning,
-- specialty-level binomial modeling,
-- stepped-wedge simulation, and
-- simulation-based power / type I error estimation.
+`stepwedgepower` provides simulation-based design evaluation for stepped-wedge
+cluster randomized trials with aggregated binary outcomes. It connects the
+rollout schedule, data-generating assumptions, planned mixed model, and
+empirical operating characteristics in one reproducible workflow.
 
-## Project background
+Version 0.3.0 supports:
 
-This package is based on a PhD biostatistics rotation project on **statistical methods for stepped wedge clinical trial designs**. According to the rotation evaluation, the project involved:
-
-- research of published literature,
-- summarizing literature in slides/presentations, and
-- building **well-organized, well-documented R software**.
-
-The software was also used to provide sample size calculations for a study under development. In the permission email shown in the screenshots, Prof. Florin Vaida approved publishing the software to GitHub.
-
-## What was changed from the original script
-
-The original file mixed together:
-
-1. raw CSV imports,
-2. one-off data cleaning,
-3. model fitting,
-4. ad hoc probability extraction, and
-5. repeated simulation loops.
-
-This package reorganizes those steps into exported functions:
-
-- `prepare_physician_data()`
-- `summarize_by_specialty()`
-- `fit_specialty_rate_model()`
-- `estimate_specialty_rates()`
-- `analyze_lpa_outcomes()`
-- `simulate_stepwedge_trial()`
-- `run_stepwedge_analysis()`
-- `estimate_power()`
-- `estimate_type1_error()`
+- arbitrary binary stepped-wedge crossover schedules;
+- unequal clusters per sequence and flexible cluster-period sizes;
+- secular trends and latent-scale ICC input;
+- empirical power, type I error, bias, coverage, convergence, singularity, and
+  Monte Carlo uncertainty;
+- sensitivity grids and reproducible parallel simulation;
+- asynchronous cumulative schedules in which clusters move from Control to A
+  and later add B at different times;
+- separate A, incremental-B, and total A+B contrasts, multiplicity adjustment,
+  schedule auditing, conditional power, and failure-aware power.
 
 ## Installation
+
+```r
+install.packages("stepwedgepower")
+```
+
+Install the development version from GitHub with:
 
 ```r
 # install.packages("remotes")
 remotes::install_github("AmandaLinLi/stepwedgepower")
 ```
 
-## Minimal workflow
+## Standard stepped-wedge workflow
 
 ```r
 library(stepwedgepower)
 
-dat0 <- read.csv("data_pseudo_homeDPT.csv")
-dat <- prepare_physician_data(dat0)
-
-summary_tbl <- summarize_by_specialty(
-  dat,
-  vars = c("n_total_pat", "n_ldl_pat")
+design <- sw_design(
+  clusters_per_sequence = c(8, 8, 8, 8),
+  crossover_period = c(2, 3, 4, 5),
+  n_periods = 5
 )
 
-results <- analyze_lpa_outcomes(dat)
-
-results$overall$logit$glm_rates
-results$overall$logit$glmer_rates
-
-power_out <- estimate_power(
-  n_simulations = 500,
-  effect_size_or = 2.11,
-  n_providers_per_specialty = c(40, 40, 40, 40) * 0.25,
-  tau_provider = 1.21,
-  base_probs = c(0.05, 0.05, 0.05, 0.05),
-  pts_per_step = 50 / 5,
-  seed = 2026
+assumptions <- sw_assumptions(
+  baseline_prob = 0.10,
+  treatment_or = 1.50,
+  icc = 0.05,
+  period_effects = c(0, 0.05, 0.10, 0.15, 0.20),
+  n_per_cluster_period = 30
 )
 
-power_out$power
+trial <- simulate_swcrt(design, assumptions, seed = 1)
+fit <- analyze_swcrt(trial)
+
+# Use substantially more simulations for a final design decision.
+power <- power_swcrt(design, assumptions, nsim = 500, seed = 2026)
+summary(power)
 ```
 
-## Example data
+## Asynchronous Control to A to A+B design
 
-A small synthetic dataset is included for quick testing:
+The cumulative extension treats B as an add-on intervention: B is never
+observed without A, so its coefficient is the incremental effect of A+B versus
+A.
 
 ```r
-ex_dat <- read_example_physician_data()
-head(ex_dat)
+three_state <- sw_multistage_design(
+  clusters_per_sequence = rep(6, 8),
+  a_start = c(2, 3, 4, 5, 6, 7, 8, 9),
+  b_start = c(6, 8, 7, 10, 9, 11, 12, 12),
+  n_periods = 12,
+  sequence_names = paste0("S", 1:8)
+)
+
+multistage_assumptions <- sw_multistage_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.40,
+  incremental_or_b = 1.30,
+  delay_a = 1,
+  delay_b = 1,
+  icc = 0.05,
+  n_per_cluster_period = 30
+)
+
+audit_multistage_design(
+  three_state,
+  delay_a = multistage_assumptions$delay_a,
+  delay_b = multistage_assumptions$delay_b
+)
+
+# power_ab <- power_multistage_swcrt(
+#   three_state, multistage_assumptions,
+#   nsim = 5000, multiplicity = "holm", n_cores = 4, seed = 2026
+# )
+# summary(power_ab)
 ```
 
-## Repository structure
+To compare the same A rollout with and without B:
 
-```text
-stepwedgepower/
-  DESCRIPTION
-  NAMESPACE
-  R/
-  man/
-  inst/extdata/
-  inst/scripts/
-  tests/
-  .github/workflows/
+```r
+two_state <- sw_multistage_design(
+  clusters_per_sequence = three_state$clusters_per_sequence,
+  a_start = three_state$a_start,
+  b_start = rep(Inf, three_state$n_sequences),
+  n_periods = three_state$n_periods,
+  sequence_names = three_state$sequence_names
+)
+
+# comparison <- compare_multistage_designs(
+#   two_state, three_state, multistage_assumptions,
+#   nsim = 5000, multiplicity = "holm", n_cores = 4, seed = 2026
+# )
+# comparison
 ```
 
-## Notes
+The installed demonstration is available at:
 
-- The package is structured to be **GitHub-ready**.
-- I assumed an **MIT license** for convenience; you can change that before publishing.
-- The original external CSV files are not bundled here, so the package ships with synthetic example data only.
-- Because the current environment does not have an R runtime, this package scaffold was prepared carefully but not executed with `R CMD check` inside the container.
+```r
+system.file("examples", "demo_async_A_AB.R", package = "stepwedgepower")
+```
 
+## Vignettes
+
+```r
+vignette("stepped-wedge-design", package = "stepwedgepower")
+vignette("asynchronous-a-ab", package = "stepwedgepower")
+vignette("lpa-case-study", package = "stepwedgepower")
+```
+
+The Lp(a) functions are retained as application wrappers over the package's
+generic clustered-data tools; the core simulation and power interfaces are
+application-neutral.

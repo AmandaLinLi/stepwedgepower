@@ -1,0 +1,187 @@
+---
+title: "Asynchronous Control to A to A+B stepped-wedge designs"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Asynchronous Control to A to A+B stepped-wedge designs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(1)
+```
+
+```{r setup}
+library(stepwedgepower)
+```
+
+## Design question
+
+Some implementation studies add interventions in stages. A cluster first moves
+from control to intervention A and later receives B in addition to A:
+
+\[
+\text{Control} \longrightarrow A \longrightarrow A+B.
+\]
+
+The sequences need not add B in the same calendar period. This distinction is
+important: the design is not a conventional three-arm trial, and there is no
+B-only condition. The B coefficient therefore represents the **incremental
+add-on effect of B among clusters already receiving A**.
+
+## An asynchronous schedule
+
+The example below has eight sequences. A and B begin at different times, and
+the duration of A-only exposure also varies across sequences.
+
+```{r}
+three_state <- sw_multistage_design(
+  clusters_per_sequence = rep(6, 8),
+  a_start = c(2, 3, 4, 5, 6, 7, 8, 9),
+  b_start = c(6, 8, 7, 10, 9, 11, 12, 12),
+  n_periods = 12,
+  sequence_names = paste0("S", 1:8)
+)
+three_state
+```
+
+The varying A-to-B lags help distinguish the B effect from a treatment-A effect
+that simply matures with exposure time. The schedule can also be entered as an
+explicit matrix containing `0` (Control), `1` (A), and `2` (A+B).
+
+## Delayed effects
+
+```{r}
+assumptions <- sw_multistage_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.40,
+  incremental_or_b = 1.30,
+  delay_a = 1,
+  delay_b = 1,
+  icc = 0.05,
+  period_effects = log(seq(1.00, 1.12, length.out = 12)),
+  n_per_cluster_period = 30
+)
+assumptions
+```
+
+A delay of one makes the first active period a wash-in period. The effect begins
+in the second period after the corresponding intervention starts. On the logit
+scale, the generating model is
+
+\[
+\operatorname{logit}(p_{ijt}) = \beta_{0,jt}+\gamma_t+b_i+
+\beta_A A^*_{ijt}+\beta_B B^*_{ijt}.
+\]
+
+The estimands are:
+
+* `exp(beta_A)`: A versus Control;
+* `exp(beta_B)`: A+B versus A, the incremental B effect;
+* `exp(beta_A + beta_B)`: A+B versus Control, the total effect.
+
+## Audit before simulation
+
+```{r}
+audit_multistage_design(
+  three_state,
+  delay_a = assumptions$delay_a,
+  delay_b = assumptions$delay_b
+)
+```
+
+The audit checks fixed-effect rank and identifies whether calendar periods
+contain concurrent Control/A and A/A+B comparisons. It warns when all sequences
+add B in one calendar period or after the same duration of A exposure.
+
+## Simulate and analyze one trial
+
+```{r}
+trial <- simulate_multistage_swcrt(three_state, assumptions, seed = 123)
+head(trial)
+```
+
+The active rollout state and the delayed-effect indicators are both retained.
+This makes the assumptions auditable rather than hiding wash-in periods inside
+a single treatment code.
+
+```{r, eval = FALSE}
+fit <- fit_multistage_model(trial, multiplicity = "holm")
+fit$contrasts
+```
+
+The default mixed model contains separate A and B indicators, categorical
+calendar time, and a cluster random intercept. The total A+B contrast uses the
+estimated covariance between the A and B coefficients.
+
+## Power and failure-aware performance
+
+```{r, eval = FALSE}
+power_three <- power_multistage_swcrt(
+  three_state,
+  assumptions,
+  nsim = 5000,
+  multiplicity = "holm",
+  n_cores = 4,
+  seed = 2026
+)
+summary(power_three)
+plot(power_three, type = "failure-aware")
+```
+
+The output distinguishes conditional power among usable fits from
+failure-aware power, which counts a failed or non-estimable analysis as an
+unsuccessful trial. It also reports Monte Carlo intervals, type-specific
+contrasts, bias, standard-error calibration, coverage, convergence, and
+singular fits.
+
+## Compare Control to A with Control to A to A+B
+
+Construct a two-state schedule with the same A rollout, clusters, periods, and
+sample sizes, but no B transition.
+
+```{r}
+two_state <- sw_multistage_design(
+  clusters_per_sequence = three_state$clusters_per_sequence,
+  a_start = three_state$a_start,
+  b_start = rep(Inf, three_state$n_sequences),
+  n_periods = three_state$n_periods,
+  sequence_names = three_state$sequence_names
+)
+```
+
+```{r, eval = FALSE}
+comparison <- compare_multistage_designs(
+  design_two = two_state,
+  design_three = three_state,
+  assumptions_two = assumptions,
+  nsim = 5000,
+  multiplicity = "holm",
+  n_cores = 4,
+  seed = 2026
+)
+comparison
+```
+
+The A-versus-Control rows can be compared directly under equal resources. The
+three-state design additionally reports incremental-B power, total A+B power,
+and the probability that both multiplicity-adjusted component objectives
+succeed.
+
+## Check type I error first
+
+```{r, eval = FALSE}
+type1 <- type1_multistage_swcrt(
+  three_state,
+  assumptions,
+  nsim = 5000,
+  multiplicity = "holm",
+  n_cores = 4,
+  seed = 22026
+)
+type1
+```
+
+Power should be interpreted only after confirming that the intended tests have
+acceptable null rejection rates for the proposed number of clusters and ICC.
