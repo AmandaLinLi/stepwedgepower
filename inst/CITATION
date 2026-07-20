@@ -1,0 +1,13 @@
+citHeader("To cite stepwedgepower in publications, use:")
+
+bibentry(
+  bibtype = "Manual",
+  title = "stepwedgepower: Simulation-Based Power Evaluation for Stepped-Wedge Cluster Randomized Trials",
+  author = c(
+    person(given = "Lin (Amanda)", family = "Li"),
+    person(given = "Florin", family = "Vaida")
+  ),
+  year = "2026",
+  note = "R package version 0.4.0",
+  url = "https://CRAN.R-project.org/package=stepwedgepower"
+)

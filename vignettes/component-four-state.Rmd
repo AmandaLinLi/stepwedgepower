@@ -1,0 +1,153 @@
+---
+title: "Control, A, B, and A+B Designs with Withdrawal and Carryover"
+author: "Amanda Li"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Control, A, B, and A+B Designs with Withdrawal and Carryover}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This vignette illustrates the component engine introduced in version 0.4.0.
+The schedule contains four assigned treatment states: Control, A, B, and A+B.
+Unlike a cumulative rollout, a component may be withdrawn and later restarted.
+The data-generating model can retain a prespecified residual component effect
+after withdrawal.
+
+## Schedule
+
+The following example contains both `Control -> A -> A+B -> B` and
+`Control -> B -> A+B` paths. Numeric state codes are 0 for Control, 1 for A, 2
+for B, and 3 for A+B.
+
+```{r design}
+library(stepwedgepower)
+
+state <- rbind(
+  S1 = c(0, 0, 1, 1, 3, 3, 2, 2, 2, 2),
+  S2 = c(0, 0, 0, 1, 1, 3, 3, 2, 2, 2),
+  S3 = c(0, 0, 2, 2, 3, 3, 3, 3, 3, 3),
+  S4 = c(0, 0, 0, 2, 2, 3, 3, 3, 3, 3),
+  S5 = c(0, 0, 1, 1, 1, 3, 3, 3, 3, 3),
+  S6 = c(0, 0, 2, 2, 2, 3, 3, 3, 3, 3),
+  S7 = c(0, 0, 0, 0, 0, 1, 1, 3, 2, 2),
+  S8 = c(0, 0, 0, 0, 0, 2, 2, 3, 1, 1)
+)
+
+design <- sw_component_design(
+  clusters_per_sequence = rep(5L, 8),
+  state = state
+)
+design
+```
+
+The schedule is represented internally by separate binary assignment matrices
+for A and B. It is not treated as an ordinal 0--3 dose.
+
+## Effects, wash-in, and carryover
+
+```{r assumptions}
+assumptions <- sw_component_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.35,
+  treatment_or_b = 1.25,
+  interaction_or = 1.10,
+  delay_a = 1L,
+  delay_b = 1L,
+  carryover_periods_a = 2L,
+  carryover_periods_b = 2L,
+  carryover_weights_a = c(0.60, 0.30),
+  carryover_weights_b = c(0.50, 0.25),
+  restart_rule_a = "reset",
+  restart_rule_b = "reset",
+  interaction_mode = "effective_overlap",
+  icc = 0.05,
+  period_effects = log(seq(1.00, 1.10, length.out = ncol(state))),
+  n_per_cluster_period = 25L
+)
+assumptions
+```
+
+A one-period delay means that a component first contributes its full effect in
+the second consecutive assigned period. After A is withdrawn, 60 percent and
+30 percent of its full log-odds effect persist for two periods. With
+`interaction_mode = "effective_overlap"`, the interaction weight is the product
+of the effective A and B weights, so interaction carryover is possible while
+both effective components overlap.
+
+## Design audit
+
+```{r audit}
+audit <- audit_component_design(design, assumptions)
+audit
+```
+
+The audit checks the rank of the intended fixed-effect model and formal
+estimability of six standard contrasts. It also reports concurrent state
+comparisons and notes any withdrawal for which immediate washout has been
+assumed.
+
+## One simulated trial
+
+```{r simulate-fit}
+one_trial <- simulate_component_swcrt(design, assumptions, seed = 123)
+fit <- fit_component_model(
+  one_trial,
+  multiplicity = "holm",
+  multiplicity_family = c("A_vs_control", "B_vs_control", "interaction")
+)
+fit$contrasts
+```
+
+The standard contrasts are:
+
+* A versus Control;
+* B versus Control;
+* A+B versus Control;
+* A+B versus A;
+* A+B versus B; and
+* the A-by-B interaction.
+
+The interaction coefficient is the departure from additivity on the log-odds
+scale. A B-only state is required to separate the B main effect from the
+interaction when the interaction is fitted.
+
+## Power and global-null calibration
+
+A short exploratory run is shown below. A final analysis should use a simulation
+count chosen from a prespecified Monte Carlo precision target and should also
+run the global-null design through `type1_component_swcrt()`.
+
+```{r power, eval=FALSE}
+power <- power_component_swcrt(
+  design,
+  assumptions,
+  nsim = 5000,
+  multiplicity = "holm",
+  multiplicity_family = c("A_vs_control", "B_vs_control", "interaction"),
+  nAGQ = 1,
+  n_cores = 4,
+  seed = 2026
+)
+summary(power)
+
+type1 <- type1_component_swcrt(
+  design,
+  assumptions,
+  nsim = 5000,
+  multiplicity = "holm",
+  multiplicity_family = c("A_vs_control", "B_vs_control", "interaction"),
+  nAGQ = 1,
+  n_cores = 4,
+  seed = 22026
+)
+summary(type1)
+```
+
+Both conditional power and failure-aware power are reported. Their difference
+shows how much the apparent operating performance depends on excluding failed
+or non-estimable analyses.
