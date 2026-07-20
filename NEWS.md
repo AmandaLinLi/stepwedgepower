@@ -1,3 +1,44 @@
+# stepwedgepower 0.4.0
+
+## General component-based designs
+* Added `sw_component_design()` for arbitrary asynchronous schedules containing
+  Control, A, B, and A+B. Schedules may be supplied as a four-state matrix or
+  as separate binary component-assignment matrices. Unlike the cumulative
+  interface, component schedules may include withdrawal and reintroduction.
+* Added `as_component_design()` to convert the version 0.3.0 cumulative
+  Control/A/A+B design into the general representation.
+
+## Wash-in, withdrawal, and carryover
+* Added `sw_component_assumptions()` with separate A and B main effects, an
+  A-by-B interaction, component-specific wash-in periods, restart rules, and
+  user-defined non-increasing carryover weights after withdrawal.
+* If a component is restarted before residual carryover has ended, the
+  simulation retains the larger of the residual carryover effect and the
+  restarted current effect. Interaction carryover can follow overlap of the
+  effective component weights or be restricted to current assignment.
+* Added `simulate_component_swcrt()` with complete assignment and effect-history
+  columns, including exposure episodes, withdrawals, restarts, periods since
+  withdrawal, current effects, residual carryover, and true component
+  contributions.
+
+## Analysis and operating characteristics
+* Added `fit_component_model()` with standard contrasts for A versus Control,
+  B versus Control, A+B versus Control, A+B versus A, A+B versus B, and the
+  A-by-B interaction. Linear-contrast standard errors use the full fitted
+  covariance matrix.
+* Added `audit_component_design()` to check state support, concurrent treatment
+  comparisons, withdrawal and restart patterns, fixed-effect rank, and formal
+  estimability of requested contrasts under the planned wash-in and carryover
+  rules.
+* Added `power_component_swcrt()` and `type1_component_swcrt()` with exact Monte
+  Carlo intervals, multiplicity-adjusted tests, joint-success probability,
+  conditional and failure-aware power, bias, standard-error calibration,
+  coverage, convergence, singularity, and warning diagnostics.
+* Added `compare_component_designs()` for equal-resource or unequal-resource
+  comparisons of two or more candidate component schedules.
+* Added a four-state vignette and an installed demonstration script showing a
+  Control -> A -> A+B -> B withdrawal path alongside Control -> B -> A+B paths.
+
 # stepwedgepower 0.3.0
 
 ## Asynchronous cumulative interventions
