@@ -1,5 +1,7 @@
 # stepwedgepower
 
+[![CRAN status](https://www.r-pkg.org/badges/version/stepwedgepower)](https://CRAN.R-project.org/package=stepwedgepower)
+[![R-CMD-check](https://github.com/AmandaLinLi/stepwedgepower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AmandaLinLi/stepwedgepower/actions)
 
 `stepwedgepower` provides simulation-based design evaluation for stepped-wedge
 cluster randomized trials with aggregated binary outcomes. It connects the
@@ -20,6 +22,8 @@ Version 0.4.0 supports:
   schedule auditing, conditional power, and failure-aware power;
 - a general component engine for Control, A, B, and A+B, including
   arbitrary withdrawal and reintroduction schedules;
+- structurally incomplete and block stepped-wedge schedules in which dashes or
+  missing cells contribute no cluster-period outcome;
 - separate wash-in, restart, and carryover rules for A and B, together with an
   optional A-by-B interaction;
 - standard factorial contrasts, formal estimability checks, and comparisons of
@@ -132,6 +136,63 @@ The installed demonstration is available at:
 system.file("examples", "demo_component_four_state.R", package = "stepwedgepower")
 ```
 
+## Structurally incomplete SWD and block SWD schedules
+
+A dash denotes a cluster-period with no outcome data; it is not recoded as
+Control. The latent schedule is retained for treatment history, while simulation
+and analysis use only observed cells.
+
+```r
+swd <- sw_incomplete_component_design(
+  clusters_per_sequence = c(5, 5),
+  state = rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2"),
+    `Group 2` = c("0", "0", "1", "1+2")
+  )
+)
+
+bswd <- sw_incomplete_component_design(
+  clusters_per_sequence = c(2, 2, 3, 3),
+  state = rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2", "-"),
+    `Group 2` = c("0", "0", "1", "1+2", "-"),
+    `Group 3` = c("-", "0", "1", "1+2", "1+2"),
+    `Group 4` = c("-", "0", "0", "1", "1+2")
+  )
+)
+
+incomplete_assumptions <- sw_component_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.35,
+  treatment_or_b = 1.25,
+  interaction_mode = "none",
+  icc = 0.05,
+  n_per_cluster_period = 25
+)
+
+component_resource_summary(swd, incomplete_assumptions)
+component_resource_summary(bswd, incomplete_assumptions)
+# Both designs have 40 observed clinic-periods and 1,000 observations.
+
+# Use several thousand simulations for a final analysis.
+# comparison <- compare_component_designs(
+#   list(SWD = swd, BSWD = bswd),
+#   incomplete_assumptions,
+#   nsim = 5000,
+#   contrasts = c("A_vs_control", "AB_vs_A", "AB_vs_control"),
+#   include_interaction = FALSE,
+#   multiplicity = "holm",
+#   n_cores = 4,
+#   seed = 2026
+# )
+```
+
+The installed demonstration is available at:
+
+```r
+system.file("examples", "demo_exact_SWD_BSWD.R", package = "stepwedgepower")
+```
+
 ## Asynchronous Control to A to A+B design
 
 The cumulative extension treats B as an add-on intervention: B is never
@@ -199,6 +260,7 @@ system.file("examples", "demo_async_A_AB.R", package = "stepwedgepower")
 ```r
 vignette("stepped-wedge-design", package = "stepwedgepower")
 vignette("component-four-state", package = "stepwedgepower")
+vignette("incomplete-block-designs", package = "stepwedgepower")
 vignette("asynchronous-a-ab", package = "stepwedgepower")
 vignette("lpa-case-study", package = "stepwedgepower")
 ```

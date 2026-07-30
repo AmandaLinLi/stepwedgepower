@@ -68,14 +68,25 @@
     max(1, sqrt(sum(linear^2)))
 }
 
+.component_observed_cluster_period_count <- function(design) {
+  observed <- .component_observed_matrix(design)
+  as.integer(sum(design$clusters_per_sequence * rowSums(observed)))
+}
+
 .component_total_sample_size <- function(design, assumptions) {
   spec <- assumptions$n_per_cluster_period
   if (is.function(spec)) return(NA_real_)
+
+  observed <- .component_observed_matrix(design)
   cluster_sequence <- rep(
     seq_len(design$n_sequences), times = design$clusters_per_sequence
   )
-  sequence_idx <- rep(cluster_sequence, each = design$n_periods)
-  period <- rep(seq_len(design$n_periods), times = design$n_clusters)
+  sequence_idx_full <- rep(cluster_sequence, each = design$n_periods)
+  period_full <- rep(seq_len(design$n_periods), times = design$n_clusters)
+  keep <- observed[cbind(sequence_idx_full, period_full)]
+  sequence_idx <- sequence_idx_full[keep]
+  period <- period_full[keep]
+
   n <- .resolve_sample_size(
     spec, sequence_idx, period, design$n_sequences, design$n_periods
   )

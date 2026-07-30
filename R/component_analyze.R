@@ -8,7 +8,9 @@
 #'
 #' The standard contrasts are A versus Control, B versus Control, A+B versus
 #' Control, A+B versus A, A+B versus B, and the A-by-B interaction. All contrast
-#' standard errors use the complete fitted covariance matrix.
+#' standard errors use the complete fitted covariance matrix. If `data`
+#' contains an `observed` column, rows marked `FALSE` or `0` are omitted before
+#' outcome validation and fitting.
 #'
 #' @param data Aggregated cluster-period data, normally from
 #'   [simulate_component_swcrt()].
@@ -90,6 +92,13 @@ fit_component_model <- function(
   }
   if (length(outcome) != 2L) {
     stop("`outcome` must be c(events, n).", call. = FALSE)
+  }
+  if ("observed" %in% names(data)) {
+    flag <- data[["observed"]]
+    if (anyNA(flag)) stop("The `observed` column cannot contain missing values.", call. = FALSE)
+    if (is.logical(flag)) keep <- flag else if (is.numeric(flag) && all(flag %in% c(0, 1))) keep <- flag == 1 else stop("The `observed` column must contain TRUE/FALSE or 0/1.", call. = FALSE)
+    data <- data[keep, , drop = FALSE]
+    if (!nrow(data)) stop("No observed cluster-period rows remain for analysis.", call. = FALSE)
   }
 
   events <- outcome[1]
