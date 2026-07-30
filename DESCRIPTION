@@ -16,9 +16,10 @@ Description: Provides simulation-based power, type I error, and operating-
     sizes, reproducible parallel execution, sensitivity grids, and mixed-model
     diagnostics. A component-based engine supports the four treatment states
     Control, A, B, and A+B under arbitrary asynchronous schedules, including
-    withdrawal, reintroduction, wash-in delays, user-defined carryover decay,
-    component main effects, an A-by-B interaction, estimability audits,
-    multiplicity adjustment, and conditional and failure-aware power. The
+    structurally unobserved cluster-periods, withdrawal, reintroduction,
+    wash-in delays, user-defined carryover decay, component main effects, an
+    A-by-B interaction, estimability audits, multiplicity adjustment, and
+    conditional and failure-aware power. The
     cumulative Control-to-A-to-A+B interface from earlier versions remains
     available. The design and mixed-effects analysis follow Hussey and Hughes
     (2007) <doi:10.1016/j.cct.2006.05.007>. Intraclass correlations for binary

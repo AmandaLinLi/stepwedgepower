@@ -8,6 +8,21 @@
 * Added `as_component_design()` to convert the version 0.3.0 cumulative
   Control/A/A+B design into the general representation.
 
+## Structurally incomplete and block stepped-wedge designs
+* Added an `observed` mask to `sw_component_design()`. Cells marked `FALSE`
+  retain their latent treatment history but contribute no outcome and no row
+  to the fitted model.
+* Added `sw_incomplete_component_design()` for schedules written with `-`,
+  blank cells, or `NA`. The constructor accepts manuscript labels such as
+  `0`, `1`, and `1+2`, distinguishes missing periods from Control, and infers
+  latent leading or trailing states when they are unambiguous.
+* Added `component_resource_summary()` to report calendar and observed
+  sequence-periods, cluster-periods, and total individual observations.
+* Updated simulation, design auditing, model fitting, power calculation, and
+  cross-design comparison to use only observed cluster-periods. This supports
+  block stepped-wedge designs in which different sequence groups are observed
+  over different calendar windows.
+
 ## Wash-in, withdrawal, and carryover
 * Added `sw_component_assumptions()` with separate A and B main effects, an
   A-by-B interaction, component-specific wash-in periods, restart rules, and

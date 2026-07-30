@@ -2,14 +2,22 @@
 \name{simulate_component_swcrt}
 \alias{simulate_component_swcrt}
 \title{Simulate a Component-Based Stepped-Wedge Trial}
-\usage{simulate_component_swcrt(design, assumptions, seed = NULL)}
+\usage{
+simulate_component_swcrt(
+  design,
+  assumptions,
+  seed = NULL,
+  include_unobserved = FALSE
+)
+}
 \arguments{
   \item{design}{An \code{sw_component_design} object.}
   \item{assumptions}{An \code{sw_component_assumptions} object.}
   \item{seed}{Optional random seed.}
+  \item{include_unobserved}{Logical. When false, return only observed cluster-periods. When true, retain latent unobserved rows with missing \code{n} and \code{events}.}
 }
 \description{
-Generates aggregated binary cluster-period outcomes under arbitrary Control/A/B/A+B schedules with wash-in, withdrawal, carryover, restart, secular trend, component effects, and interaction.
+Generates aggregated binary cluster-period outcomes under arbitrary Control/A/B/A+B schedules with wash-in, withdrawal, carryover, restart, secular trend, component effects, interaction, and structurally unobserved periods.
 }
 \value{A data frame containing assignments, exposure histories, effect weights, outcomes, and true probabilities.}
 \examples{
