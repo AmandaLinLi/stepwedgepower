@@ -1,0 +1,6 @@
+item,value,source
+manuscript_title,"Power and Sample Size Implications of Delayed Cluster Initiation in Stepped Wedge Trials","Lin et al. (2026), manuscript title page"
+manuscript_date,2026-04-20,"Lin et al. (2026), manuscript title page"
+companion_repository,https://github.com/tuolin123/BatchedSW,"Lin et al. (2026), Data Availability Statement"
+reference_R_version,4.2.2,"Companion repository README"
+external_package_versions,"Not reported in manuscript or companion repository","Recorded as unavailable rather than inferred"
