@@ -1,0 +1,139 @@
+---
+title: "Structurally Incomplete and Block Stepped-Wedge Designs"
+author: "Amanda Li"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Structurally Incomplete and Block Stepped-Wedge Designs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This vignette compares a conventional stepped-wedge design (SWD) with a block
+stepped-wedge design (BSWD). A dash denotes a clinic-period for which no outcome
+is observed. It is not a Control observation.
+
+## Exact schedules
+
+The manuscript labels are `0` for Control, `1` for intervention A, and `1+2`
+for A+B. The component engine maps `1+2` to its internal A+B state.
+
+```{r designs}
+library(stepwedgepower)
+
+swd <- sw_incomplete_component_design(
+  clusters_per_sequence = c(5L, 5L),
+  state = rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2"),
+    `Group 2` = c("0", "0", "1", "1+2")
+  )
+)
+
+bswd <- sw_incomplete_component_design(
+  clusters_per_sequence = c(2L, 2L, 3L, 3L),
+  state = rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2", "-"),
+    `Group 2` = c("0", "0", "1", "1+2", "-"),
+    `Group 3` = c("-", "0", "1", "1+2", "1+2"),
+    `Group 4` = c("-", "0", "0", "1", "1+2")
+  )
+)
+
+swd
+bswd
+```
+
+For leading missing periods, the constructor infers the first observed state as
+the latent state. For trailing missing periods, it carries forward the final
+observed state. These latent values preserve treatment history but do not
+create outcome observations. An internal missing gap requires the user to
+supply `latent_state` explicitly.
+
+## Assumptions and equal observed resources
+
+B is not observed by itself in these designs. With no interaction term, the B
+coefficient is therefore the incremental A+B versus A effect.
+
+```{r assumptions-resources}
+assumptions <- sw_component_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.35,
+  treatment_or_b = 1.25,
+  interaction_mode = "none",
+  icc = 0.05,
+  n_per_cluster_period = 25L
+)
+
+rbind(
+  SWD = component_resource_summary(swd, assumptions),
+  BSWD = component_resource_summary(bswd, assumptions)
+)
+```
+
+The SWD contains 40 calendar and observed clinic-periods. The BSWD contains 50
+calendar clinic-periods, of which 40 are observed and 10 are structurally
+missing. Both designs therefore contain 1,000 individual observations when
+there are 25 observations per clinic-period.
+
+## Audit and simulation
+
+```{r audit-simulate}
+contrasts <- c("A_vs_control", "AB_vs_A", "AB_vs_control")
+
+audit_component_design(
+  bswd,
+  assumptions,
+  contrasts = contrasts,
+  include_interaction = FALSE
+)
+
+observed_trial <- simulate_component_swcrt(bswd, assumptions, seed = 123)
+latent_trial <- simulate_component_swcrt(
+  bswd, assumptions, seed = 123, include_unobserved = TRUE
+)
+
+c(
+  observed_rows = nrow(observed_trial),
+  latent_calendar_rows = nrow(latent_trial),
+  structurally_unobserved_rows = sum(!latent_trial$observed)
+)
+```
+
+By default, the simulator returns only observed cluster-periods. Setting
+`include_unobserved = TRUE` retains the latent rows for inspection; their
+sample size and event count are missing, and `fit_component_model()` excludes
+them automatically.
+
+## Power comparison
+
+The same component power engine can compare complete and structurally
+incomplete designs. The comparison reports both calendar and observed
+resources.
+
+```{r power, eval=FALSE}
+comparison <- compare_component_designs(
+  designs = list(SWD = swd, BSWD = bswd),
+  assumptions = assumptions,
+  nsim = 5000,
+  contrasts = contrasts,
+  include_interaction = FALSE,
+  multiplicity = "holm",
+  multiplicity_family = contrasts,
+  nAGQ = 1,
+  n_cores = 4,
+  seed = 2026,
+  warn_on_design = FALSE
+)
+
+comparison$resource_check
+comparison$comparison
+```
+
+The complete installed demonstration can be located with:
+
+```{r locate-demo}
+system.file("examples", "demo_exact_SWD_BSWD.R", package = "stepwedgepower")
+```

@@ -45,7 +45,7 @@ fit_component_model(
   \item{alpha}{Two-sided significance level.}
 }
 \description{
-Fits the planned mixed model and returns A, B, combined-treatment, incremental, and interaction Wald contrasts with covariance-correct standard errors.
+Fits the planned mixed model and returns A, B, combined-treatment, incremental, and interaction Wald contrasts with covariance-correct standard errors. If the data contain an \code{observed} column, rows marked false or zero are removed before outcome validation and fitting.
 }
 \value{A list containing the fitted model, contrast table, multiplicity results, and fitting diagnostics.}
 \examples{

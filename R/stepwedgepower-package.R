@@ -8,11 +8,16 @@
 #' engine permits arbitrary withdrawal and reintroduction schedules,
 #' structurally unobserved cluster-periods, wash-in, user-defined carryover
 #' decay, an A-by-B interaction, estimability audits, multiplicity-aware
+<<<<<<< HEAD
 #' contrasts, failure-aware operating characteristics, and explicit
 #' model-fitting outcome diagnostics. A batch-aware interface supports classic
 #' and batched stepped-wedge designs with delayed cluster initiation and
 #' calendar-time, time-on-trial, or separate batch-specific time effects.
 #' 
+=======
+#' contrasts, and failure-aware operating characteristics.
+#'
+>>>>>>> origin/main
 #' @keywords internal
 #' @aliases stepwedgepower-package
 "_PACKAGE"

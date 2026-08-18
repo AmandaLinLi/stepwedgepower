@@ -79,7 +79,10 @@ audit_component_design <- function(
 
   required_state_map <- list(
     A_vs_control = c("Control", "A"), B_vs_control = c("Control", "B"),
+<<<<<<< HEAD
     B_vs_A = c("A", "B"),
+=======
+>>>>>>> origin/main
     AB_vs_control = c("Control", "A+B"), AB_vs_A = c("A", "A+B"),
     AB_vs_B = c("B", "A+B"), interaction = c("Control", "A", "B", "A+B")
   )
@@ -94,7 +97,10 @@ audit_component_design <- function(
   overlap_requirements <- list(
     A_vs_control = list(key="control_a", states="Control and A-only"),
     B_vs_control = list(key="control_b", states="Control and B-only"),
+<<<<<<< HEAD
     B_vs_A = list(key="a_b", states="A-only and B-only"),
+=======
+>>>>>>> origin/main
     AB_vs_control = list(key="control_ab", states="Control and A+B"),
     AB_vs_A = list(key="a_ab", states="A-only and A+B"),
     AB_vs_B = list(key="b_ab", states="B-only and A+B"),

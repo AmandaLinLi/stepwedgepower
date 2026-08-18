@@ -1,7 +1,11 @@
 # stepwedgepower
 
 [![CRAN status](https://www.r-pkg.org/badges/version/stepwedgepower)](https://CRAN.R-project.org/package=stepwedgepower)
+<<<<<<< HEAD
 [![R-CMD-check](https://github.com/AmandaLinLi/stepwedgepower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AmandaLinLi/stepwedgepower/actions)
+=======
+
+>>>>>>> origin/main
 
 `stepwedgepower` provides simulation-based design evaluation for stepped-wedge
 cluster randomized trials with aggregated binary outcomes. It connects the
@@ -29,7 +33,11 @@ Version 0.4.1 supports:
   schedule auditing, conditional power, and failure-aware power;
 - a general component engine for Control, A, B, and A+B, including
   arbitrary withdrawal and reintroduction schedules;
+<<<<<<< HEAD
 - structurally incomplete and batched stepped-wedge schedules in which dashes or
+=======
+- structurally incomplete and block stepped-wedge schedules in which dashes or
+>>>>>>> origin/main
   missing cells contribute no cluster-period outcome;
 - separate wash-in, restart, and carryover rules for A and B, together with an
   optional A-by-B interaction;
@@ -154,6 +162,7 @@ The installed demonstration is available at:
 system.file("examples", "demo_component_four_state.R", package = "stepwedgepower")
 ```
 
+<<<<<<< HEAD
 ## Classic SWD and batched stepped-wedge designs
 
 A batched stepped-wedge design (BSWD) allows clusters to begin trial
@@ -164,31 +173,56 @@ supplied directly or inferred from first observed periods.
 
 ```r
 swd <- sw_batched_design(
+=======
+## Structurally incomplete SWD and block SWD schedules
+
+A dash denotes a cluster-period with no outcome data; it is not recoded as
+Control. The latent schedule is retained for treatment history, while simulation
+and analysis use only observed cells.
+
+```r
+swd <- sw_incomplete_component_design(
+>>>>>>> origin/main
   clusters_per_sequence = c(5, 5),
   state = rbind(
     `Group 1` = c("0", "1", "1+2", "1+2"),
     `Group 2` = c("0", "0", "1", "1+2")
+<<<<<<< HEAD
   ),
   batch = c("Batch 1", "Batch 1")
 )
 
 bswd <- sw_batched_design(
+=======
+  )
+)
+
+bswd <- sw_incomplete_component_design(
+>>>>>>> origin/main
   clusters_per_sequence = c(2, 2, 3, 3),
   state = rbind(
     `Group 1` = c("0", "1", "1+2", "1+2", "-"),
     `Group 2` = c("0", "0", "1", "1+2", "-"),
     `Group 3` = c("-", "0", "1", "1+2", "1+2"),
     `Group 4` = c("-", "0", "0", "1", "1+2")
+<<<<<<< HEAD
   ),
   batch = c("Batch 1", "Batch 1", "Batch 2", "Batch 2")
 )
 
 batched_assumptions <- sw_batched_assumptions(
+=======
+  )
+)
+
+incomplete_assumptions <- sw_component_assumptions(
+>>>>>>> origin/main
   baseline_prob = 0.15,
   treatment_or_a = 1.35,
   treatment_or_b = 1.25,
   interaction_mode = "none",
   icc = 0.05,
+<<<<<<< HEAD
   n_per_cluster_period = 25,
   time_model = "calendar",
   time_effects = log(seq(1.00, 1.08, length.out = 5))
@@ -218,13 +252,36 @@ audit_batched_design(
 #   nsim = 5000, contrasts = contrasts,
 #   include_interaction = FALSE, multiplicity = "holm",
 #   n_cores = 4, seed = 2026
+=======
+  n_per_cluster_period = 25
+)
+
+component_resource_summary(swd, incomplete_assumptions)
+component_resource_summary(bswd, incomplete_assumptions)
+# Both designs have 40 observed clinic-periods and 1,000 observations.
+
+# Use several thousand simulations for a final analysis.
+# comparison <- compare_component_designs(
+#   list(SWD = swd, BSWD = bswd),
+#   incomplete_assumptions,
+#   nsim = 5000,
+#   contrasts = c("A_vs_control", "AB_vs_A", "AB_vs_control"),
+#   include_interaction = FALSE,
+#   multiplicity = "holm",
+#   n_cores = 4,
+#   seed = 2026
+>>>>>>> origin/main
 # )
 ```
 
 The installed demonstration is available at:
 
 ```r
+<<<<<<< HEAD
 system.file("examples", "demo_batched_SWD_BSWD.R", package = "stepwedgepower")
+=======
+system.file("examples", "demo_exact_SWD_BSWD.R", package = "stepwedgepower")
+>>>>>>> origin/main
 ```
 
 ## Asynchronous Control to A to A+B design

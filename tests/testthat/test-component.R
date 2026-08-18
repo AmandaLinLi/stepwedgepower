@@ -336,6 +336,7 @@ test_that("incomplete design audit uses observed cells", {
   expect_equal(audit$missing_cluster_periods, 10L)
   expect_equal(audit$observed_sequences_per_period, c(2L, 4L, 4L, 4L, 2L))
 })
+<<<<<<< HEAD
 
 test_that("fit diagnostic categories are explicit and internally consistent", {
   counts <- .analysis_evaluability_counts(
@@ -389,3 +390,5 @@ test_that("singularity messages are advisory rather than nonconvergence", {
     "Model failed to converge with max|grad| = 0.01"
   )
 })
+=======
+>>>>>>> origin/main

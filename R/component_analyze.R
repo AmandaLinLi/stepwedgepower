@@ -6,8 +6,13 @@
 #' `cbind(events, n - events) ~ a_effect_weight + b_effect_weight +
 #' ab_effect_weight + factor(period) + (1 | cluster_id)`.
 #'
+<<<<<<< HEAD
 #' The standard contrasts are A versus Control, B versus Control, B versus A,
 #' A+B versus Control, A+B versus A, A+B versus B, and the A-by-B interaction. All contrast
+=======
+#' The standard contrasts are A versus Control, B versus Control, A+B versus
+#' Control, A+B versus A, A+B versus B, and the A-by-B interaction. All contrast
+>>>>>>> origin/main
 #' standard errors use the complete fitted covariance matrix. If `data`
 #' contains an `observed` column, rows marked `FALSE` or `0` are omitted before
 #' outcome validation and fitting.

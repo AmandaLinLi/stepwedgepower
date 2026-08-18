@@ -33,7 +33,7 @@ compare_component_designs(
   \item{x}{An \code{sw_component_comparison} object.}
   \item{...}{Unused.}
 }
-\description{Runs the component power engine for multiple schedules and reports operating characteristics and resource totals side by side.}
+\description{Runs the component power engine for multiple schedules and reports operating characteristics and resource totals side by side. Calendar and observed cluster-period totals are reported separately so complete and block stepped-wedge designs can be compared under equal observed resources.}
 \value{An object of class \code{sw_component_comparison}.}
 \examples{
 \donttest{
