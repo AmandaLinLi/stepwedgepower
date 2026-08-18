@@ -36,8 +36,11 @@
 #'   separately and is not included in this adjustment family.
 #'
 #' @return A list containing the fitted model, a contrast table, raw and
-#'   adjusted p-values, convergence and singularity diagnostics, captured
-#'   warnings, and a joint-success indicator for the A and B component tests.
+#'   adjusted p-values, detailed fit status, convergence and singularity
+#'   diagnostics, captured warnings, and a joint-success indicator for the A
+#'   and B component tests. Fit status distinguishes hard GLMM errors,
+#'   nonconvergence, converged fits with non-finite contrasts, and successful
+#'   fits; singularity is reported separately.
 #' @examples
 #' \donttest{
 #' design <- sw_multistage_design(
@@ -169,9 +172,15 @@ fit_multistage_model <- function(
       ),
       joint_success = NA,
       has_b = has_b,
+      hard_error = TRUE,
+      fit_status = "hard_glmm_error",
       converged = FALSE,
+      convergence_messages = character(),
+      optimizer_code = NA_character_,
+      nonfinite_contrasts = contrast_names,
       singular = NA,
       usable = FALSE,
+      successful = FALSE,
       warnings = unique(captured_warnings),
       error = fit_error,
       multiplicity = multiplicity,
@@ -180,8 +189,9 @@ fit_multistage_model <- function(
   }
 
   coefficients <- summary(fit)$coefficients
-  convergence_messages <- fit@optinfo$conv$lme4$messages
-  converged <- is.null(convergence_messages)
+  convergence <- .extract_lme4_convergence(fit)
+  convergence_messages <- convergence$messages
+  converged <- convergence$converged
   singular <- tryCatch(lme4::isSingular(fit), error = function(e) NA)
 
   contrast_a <- .multistage_wald_contrast(
@@ -231,8 +241,13 @@ fit_multistage_model <- function(
     NA
   }
 
-  required_p <- raw_p[component_names]
-  usable <- converged && all(is.finite(required_p))
+  nonfinite_contrasts <- names(raw_p)[!is.finite(raw_p)]
+  fit_status <- .classify_analysis_fit(
+    hard_error = FALSE,
+    converged = converged,
+    p_values = raw_p
+  )
+  usable <- identical(fit_status, "successful_fit")
 
   list(
     fit = fit,
@@ -244,10 +259,18 @@ fit_multistage_model <- function(
     reject_adjusted = reject_adjusted,
     joint_success = joint_success,
     has_b = has_b,
+    hard_error = FALSE,
+    fit_status = fit_status,
     converged = converged,
+    convergence_messages = convergence_messages,
+    optimizer_code = convergence$optimizer_code,
+    nonfinite_contrasts = nonfinite_contrasts,
     singular = singular,
     usable = usable,
-    warnings = unique(c(captured_warnings, convergence_messages)),
+    successful = usable,
+    warnings = unique(c(
+      captured_warnings, convergence_messages, convergence$advisory_messages
+    )),
     error = fit_error,
     multiplicity = multiplicity,
     alpha = alpha

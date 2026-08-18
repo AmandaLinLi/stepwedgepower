@@ -20,7 +20,8 @@
 #' @inheritParams power_multistage_swcrt
 #'
 #' @return An object of class `"sw_multistage_comparison"` containing both
-#'   power objects, a stacked comparison table, and a resource check.
+#'   power objects, a stacked comparison table, a combined fit-diagnostics
+#'   table, and a resource check.
 #' @examples
 #' \donttest{
 #' three <- sw_multistage_design(
@@ -110,6 +111,14 @@ compare_multistage_designs <- function(
   )
   rownames(comparison) <- NULL
 
+  fit_diagnostics <- rbind(
+    data.frame(design = labels[1], first$fit_diagnostics,
+               stringsAsFactors = FALSE),
+    data.frame(design = labels[2], second$fit_diagnostics,
+               stringsAsFactors = FALSE)
+  )
+  rownames(fit_diagnostics) <- NULL
+
   total_sample <- c(
     .multistage_total_sample_size(design_two, assumptions_two),
     .multistage_total_sample_size(design_three, assumptions_three)
@@ -139,6 +148,7 @@ compare_multistage_designs <- function(
   structure(
     list(
       comparison = comparison,
+      fit_diagnostics = fit_diagnostics,
       resource_check = resource_check,
       equal_structural_resources = equal_resources,
       equal_total_sample = equal_total_sample,
@@ -188,5 +198,16 @@ print.sw_multistage_comparison <- function(x, ...) {
     "design", "test", "conditional", "failure_aware", "evaluable"
   )
   print(display, row.names = FALSE, digits = 3)
+  cat("\nFit diagnostics by design\n")
+  diagnostic_display <- x$fit_diagnostics[, c(
+    "design", "label", "count", "rate"
+  ), drop = FALSE]
+  names(diagnostic_display) <- c("design", "category", "count", "rate")
+  print(diagnostic_display, row.names = FALSE, digits = 3)
+  cat(
+    "  Note: singular fit is a non-exclusive flag and may overlap with ",
+    "successful fit.\n",
+    sep = ""
+  )
   invisible(x)
 }

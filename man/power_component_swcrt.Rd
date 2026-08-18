@@ -69,9 +69,9 @@ type1_component_swcrt(
   \item{...}{Additional plotting arguments or unused.}
 }
 \description{
-Estimates raw and multiplicity-adjusted rejection probabilities, exact Monte Carlo intervals, estimation diagnostics, convergence, singularity, and both conditional and failure-aware power. The type I error wrapper sets all component effects to zero.
+Estimates raw and multiplicity-adjusted rejection probabilities, exact Monte Carlo intervals, estimation diagnostics, convergence, singularity, and both conditional and failure-aware power. Fit output separately reports hard GLMM errors, nonconverged fits, converged fits with non-finite requested contrasts, singular fits, and successful fits. The type I error wrapper sets all component effects to zero.
 }
-\value{An object of class \code{sw_component_power}.}
+\value{An object of class \code{sw_component_power}. The \code{fit_diagnostics} table contains aggregate counts and rates for the five fit categories. The \code{replicate_diagnostics} table contains one row per simulation with fit status, singularity, non-finite contrasts, optimizer code, and retained error and convergence messages. Singular fit is a non-exclusive property and may overlap with successful fit.}
 \examples{
 \donttest{
 state <- rbind(S1 = c(0, 1, 3, 2), S2 = c(0, 2, 3, 3),

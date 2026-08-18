@@ -50,6 +50,8 @@ comparison <- compare_multistage_designs(
   warn_on_design = FALSE
 )
 print(comparison)
+cat("\nDetailed fit diagnostics by design\n")
+print(comparison$fit_diagnostics, row.names = FALSE)
 
 # Global-null calibration check.
 type1 <- type1_multistage_swcrt(
@@ -61,3 +63,5 @@ type1 <- type1_multistage_swcrt(
   warn_on_design = FALSE
 )
 print(type1)
+cat("\nGlobal-null fit diagnostics\n")
+print(type1$fit_diagnostics, row.names = FALSE)

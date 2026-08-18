@@ -119,6 +119,7 @@
     interaction_mode <- assumptions$interaction_mode
   }
 
+  observed_matrix <- .component_observed_matrix(design)
   rows <- vector("list", design$n_sequences)
   for (s in seq_len(design$n_sequences)) {
     hist_a <- .component_effect_history(
@@ -143,6 +144,7 @@
       sequence_idx = s,
       sequence = design$sequence_names[s],
       period = seq_len(design$n_periods),
+      observed = as.logical(observed_matrix[s, ]),
       state_code = as.integer(design$state[s, ]),
       state = factor(
         design$stage_names[design$state[s, ] + 1L],
@@ -180,121 +182,63 @@
 
 #' Simulate a component-based stepped-wedge trial
 #'
-#' Generates aggregated cluster-period binary outcomes under an arbitrary
-#' Control/A/B/A+B schedule. Wash-in, withdrawal, carryover, restart, secular
-#' trend, component main effects, and an A-by-B interaction are incorporated in
-#' the data-generating model.
-#'
-#' The default logistic mixed model is
-#' \deqn{\operatorname{logit}(p)=\eta_0+\gamma_t+u_i+
-#' \beta_A w_A+\beta_B w_B+\beta_{AB}w_{AB},}
-#' where the weights are determined by the assignment history and the specified
-#' wash-in and carryover rules.
+#' Generates aggregated binary cluster-period outcomes. Structurally unobserved
+#' cells retain latent treatment history but do not receive outcomes.
 #'
 #' @param design An [sw_component_design()] object.
 #' @param assumptions An [sw_component_assumptions()] object.
 #' @param seed Optional random seed.
-#'
-#' @return A data frame with one row per cluster-period, treatment assignments,
-#'   exposure histories, carryover weights, outcomes, and true probabilities.
-#' @examples
-#' state <- rbind(
-#'   S1 = c(0, 1, 1, 3, 3, 2),
-#'   S2 = c(0, 0, 2, 2, 3, 3),
-#'   S3 = c(0, 0, 1, 1, 3, 3)
-#' )
-#' design <- sw_component_design(c(3, 3, 3), state = state)
-#' assumptions <- sw_component_assumptions(
-#'   baseline_prob = 0.15, treatment_or_a = 1.4,
-#'   treatment_or_b = 1.3, interaction_or = 1.1,
-#'   carryover_periods_a = 1, carryover_weights_a = 0.5,
-#'   icc = 0.05, n_per_cluster_period = 25
-#' )
-#' head(simulate_component_swcrt(design, assumptions, seed = 1))
+#' @param include_unobserved Retain latent unobserved rows with missing outcomes.
+#' @return A data frame with observed cluster-periods by default.
 #' @export
-simulate_component_swcrt <- function(design, assumptions, seed = NULL) {
-  if (!inherits(design, "sw_component_design")) {
-    stop("`design` must be an sw_component_design object.", call. = FALSE)
-  }
-  if (!inherits(assumptions, "sw_component_assumptions")) {
-    stop("`assumptions` must be an sw_component_assumptions object.",
-         call. = FALSE)
-  }
+simulate_component_swcrt <- function(design, assumptions, seed = NULL, include_unobserved = FALSE) {
+  if (!inherits(design, "sw_component_design")) stop("`design` must be an sw_component_design object.", call. = FALSE)
+  if (!inherits(assumptions, "sw_component_assumptions")) stop("`assumptions` must be an sw_component_assumptions object.", call. = FALSE)
+  if (length(include_unobserved) != 1L || is.na(include_unobserved)) stop("`include_unobserved` must be TRUE or FALSE.", call. = FALSE)
+  include_unobserved <- isTRUE(include_unobserved)
   if (!is.null(seed)) set.seed(seed)
-
-  n_seq <- design$n_sequences
-  n_per <- design$n_periods
-  baseline <- .expand_baseline_logit(
-    assumptions$baseline_logit, n_seq, n_per
-  )
-  period_effect <- .expand_period_effects(
-    assumptions$period_effects, n_per
-  )
-
+  n_seq <- design$n_sequences; n_per <- design$n_periods
+  baseline <- .expand_baseline_logit(assumptions$baseline_logit, n_seq, n_per)
   sequence_period <- .component_sequence_period(design, assumptions)
-  sequence_of_cluster <- rep(
-    seq_len(n_seq), times = design$clusters_per_sequence
-  )
+  sequence_of_cluster <- rep(seq_len(n_seq), times = design$clusters_per_sequence)
   n_clusters <- length(sequence_of_cluster)
-  random_intercept <- stats::rnorm(
-    n_clusters, mean = 0, sd = assumptions$cluster_sd
-  )
-
+  random_intercept <- stats::rnorm(n_clusters, 0, assumptions$cluster_sd)
   cluster_id <- rep(seq_len(n_clusters), each = n_per)
   period <- rep(seq_len(n_per), times = n_clusters)
   sequence_idx <- sequence_of_cluster[cluster_id]
   sp_index <- (sequence_idx - 1L) * n_per + period
   baseline_index <- cbind(sequence_idx, period)
-
-  n <- .resolve_sample_size(
-    assumptions$n_per_cluster_period,
-    sequence_idx,
-    period,
-    n_seq,
-    n_per
-  )
-  if (anyNA(n) || any(n < 1L)) {
-    stop("All cluster-period sample sizes must be positive integers.",
-         call. = FALSE)
+  observed <- as.logical(sequence_period$observed[sp_index]); obs_idx <- which(observed)
+  n <- rep(NA_integer_, length(cluster_id))
+  n_obs <- .resolve_sample_size(assumptions$n_per_cluster_period, sequence_idx[obs_idx], period[obs_idx], n_seq, n_per)
+  if (anyNA(n_obs) || any(n_obs < 1L)) stop("All observed cluster-period sample sizes must be positive integers.", call. = FALSE)
+  n[obs_idx] <- as.integer(n_obs)
+  wa <- sequence_period$a_effect_weight[sp_index]; wb <- sequence_period$b_effect_weight[sp_index]; wab <- sequence_period$ab_effect_weight[sp_index]
+  ca <- assumptions$treatment_effect_a * wa; cb <- assumptions$treatment_effect_b * wb; cab <- assumptions$interaction_effect * wab
+  time_effect <- if (inherits(design, "sw_batched_design") &&
+                     inherits(assumptions, "sw_batched_assumptions")) {
+    .resolve_batched_time_effect_vector(
+      design = design, assumptions = assumptions,
+      sequence_idx = sequence_idx, period = period
+    )
+  } else {
+    .expand_period_effects(assumptions$period_effects, n_per)[period]
   }
-
-  weight_a <- sequence_period$a_effect_weight[sp_index]
-  weight_b <- sequence_period$b_effect_weight[sp_index]
-  weight_ab <- sequence_period$ab_effect_weight[sp_index]
-  contribution_a <- assumptions$treatment_effect_a * weight_a
-  contribution_b <- assumptions$treatment_effect_b * weight_b
-  contribution_ab <- assumptions$interaction_effect * weight_ab
-
-  eta <- baseline[baseline_index] +
-    period_effect[period] +
-    random_intercept[cluster_id] +
-    contribution_a + contribution_b + contribution_ab
+  eta <- baseline[baseline_index] + time_effect + random_intercept[cluster_id] + ca + cb + cab
   probability <- stats::plogis(eta)
-  events <- stats::rbinom(length(probability), size = n, prob = probability)
-
-  history_columns <- setdiff(
-    names(sequence_period), c("sequence_idx", "sequence", "period")
-  )
+  events <- rep(NA_integer_, length(probability)); events[obs_idx] <- stats::rbinom(length(obs_idx), n[obs_idx], probability[obs_idx])
+  history_columns <- setdiff(names(sequence_period), c("sequence_idx", "sequence", "period"))
   history <- sequence_period[sp_index, history_columns, drop = FALSE]
-
-  out <- data.frame(
-    cluster_id = cluster_id,
-    sequence = design$sequence_names[sequence_idx],
-    sequence_idx = sequence_idx,
-    period = period,
-    history,
-    n = as.integer(n),
-    events = as.integer(events),
-    true_prob = probability,
-    true_contribution_a = contribution_a,
-    true_contribution_b = contribution_b,
-    true_contribution_ab = contribution_ab,
-    stringsAsFactors = FALSE,
-    check.names = FALSE
-  )
+  out <- data.frame(cluster_id = cluster_id, sequence = design$sequence_names[sequence_idx], sequence_idx = sequence_idx, period = period,
+                    history, n = as.integer(n), events = as.integer(events), true_prob = probability,
+                    true_time_effect = time_effect,
+                    true_contribution_a = ca, true_contribution_b = cb, true_contribution_ab = cab,
+                    stringsAsFactors = FALSE, check.names = FALSE)
+  out <- .append_batched_time_columns(out, design)
   out <- out[order(out$cluster_id, out$period), , drop = FALSE]
+  if (!include_unobserved) out <- out[out$observed, , drop = FALSE]
   rownames(out) <- NULL
-  attr(out, "sequence_levels") <- design$sequence_names
-  attr(out, "component_assumptions") <- assumptions
+  attr(out, "sequence_levels") <- design$sequence_names; attr(out, "component_assumptions") <- assumptions
+  attr(out, "component_design") <- design; attr(out, "observation_mask") <- .component_observed_matrix(design)
   out
 }

@@ -2,7 +2,10 @@
 #'
 #' Runs [power_component_swcrt()] for two or more candidate Control/A/B/A+B
 #' schedules and places their operating characteristics and resource totals in
-#' a common table. The same simulation seed is used for each design.
+#' a common table. Calendar and observed cluster-period totals are reported
+#' separately, allowing complete and structurally incomplete designs to be
+#' compared under equal observed resources. The same simulation seed is used
+#' for each design.
 #'
 #' @param designs A named or unnamed list of [sw_component_design()] objects.
 #' @param assumptions One [sw_component_assumptions()] object used for every
@@ -11,7 +14,9 @@
 #'   available.
 #' @inheritParams power_component_swcrt
 #'
-#' @return An object of class `"sw_component_comparison"`.
+#' @return An object of class `"sw_component_comparison"`. The
+#'   `fit_diagnostics` element combines the detailed fit-category counts from
+#'   every candidate design.
 #' @examples
 #' \donttest{
 #' four <- sw_component_design(
@@ -110,24 +115,45 @@ compare_component_designs <- function(
   }))
   rownames(comparison) <- NULL
 
-  total_sample <- vapply(seq_len(n_designs), function(i) {
-    .component_total_sample_size(designs[[i]], assumptions[[i]])
-  }, numeric(1))
+  fit_diagnostics <- do.call(rbind, lapply(seq_len(n_designs), function(i) {
+    data.frame(
+      design = labels[i], runs[[i]]$fit_diagnostics,
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(fit_diagnostics) <- NULL
+
+  resource_rows <- lapply(seq_len(n_designs), function(i) {
+    component_resource_summary(designs[[i]], assumptions[[i]])
+  })
+  resource_check <- do.call(rbind, resource_rows)
   resource_check <- data.frame(
     design = labels,
-    n_sequences = vapply(designs, function(x) x$n_sequences, integer(1)),
-    n_clusters = vapply(designs, function(x) x$n_clusters, integer(1)),
-    n_periods = vapply(designs, function(x) x$n_periods, integer(1)),
-    cluster_period_rows = vapply(
-      designs, function(x) x$n_clusters * x$n_periods, integer(1)
-    ),
-    total_individual_observations = total_sample,
-    stringsAsFactors = FALSE
+    resource_check,
+    stringsAsFactors = FALSE,
+    check.names = FALSE
   )
+
+  # Retain the original field name for backward compatibility. It counts all
+  # calendar cluster-period rows, whereas `observed_cluster_periods` excludes
+  # structurally unobserved cells.
+  resource_check$cluster_period_rows <-
+    resource_check$calendar_cluster_periods
+  resource_check <- resource_check[, c(
+    "design", "n_sequences", "n_clusters", "n_periods",
+    "cluster_period_rows", "observed_cluster_periods",
+    "missing_cluster_periods", "observed_sequence_periods",
+    "missing_sequence_periods", "observed_fraction",
+    "total_individual_observations"
+  ), drop = FALSE]
+
+  total_sample <- resource_check$total_individual_observations
   equal_structural_resources <-
     length(unique(resource_check$n_clusters)) == 1L &&
     length(unique(resource_check$n_periods)) == 1L &&
     length(unique(resource_check$cluster_period_rows)) == 1L
+  equal_observed_cluster_periods <-
+    length(unique(resource_check$observed_cluster_periods)) == 1L
   equal_total_sample <- if (all(is.finite(total_sample))) {
     length(unique(total_sample)) == 1L
   } else {
@@ -137,8 +163,10 @@ compare_component_designs <- function(
   structure(
     list(
       comparison = comparison,
+      fit_diagnostics = fit_diagnostics,
       resource_check = resource_check,
       equal_structural_resources = equal_structural_resources,
+      equal_observed_cluster_periods = equal_observed_cluster_periods,
       equal_total_sample = equal_total_sample,
       runs = stats::setNames(runs, labels),
       labels = labels,
@@ -156,8 +184,10 @@ print.sw_component_comparison <- function(x, ...) {
   cat("<sw_component_comparison>\n")
   cat("Resource check\n")
   print(x$resource_check, row.names = FALSE)
-  cat("  equal clusters/periods:",
+  cat("  equal calendar structure:",
       if (x$equal_structural_resources) "yes" else "no", "\n")
+  cat("  equal observed cluster-periods:",
+      if (isTRUE(x$equal_observed_cluster_periods)) "yes" else "no", "\n")
   cat("  equal total observations:",
       if (is.na(x$equal_total_sample)) "not evaluated" else
         if (x$equal_total_sample) "yes" else "no", "\n\n")
@@ -169,5 +199,16 @@ print.sw_component_comparison <- function(x, ...) {
     "design", "test", "conditional", "failure_aware", "evaluable"
   )
   print(display, row.names = FALSE, digits = 3)
+  cat("\nFit diagnostics by design\n")
+  diagnostic_display <- x$fit_diagnostics[, c(
+    "design", "label", "count", "rate"
+  ), drop = FALSE]
+  names(diagnostic_display) <- c("design", "category", "count", "rate")
+  print(diagnostic_display, row.names = FALSE, digits = 3)
+  cat(
+    "  Note: singular fit is a non-exclusive flag and may overlap with ",
+    "successful fit.\n",
+    sep = ""
+  )
   invisible(x)
 }

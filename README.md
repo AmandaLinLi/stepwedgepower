@@ -1,18 +1,27 @@
 # stepwedgepower
 
+[![CRAN status](https://www.r-pkg.org/badges/version/stepwedgepower)](https://CRAN.R-project.org/package=stepwedgepower)
+[![R-CMD-check](https://github.com/AmandaLinLi/stepwedgepower/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/AmandaLinLi/stepwedgepower/actions)
 
 `stepwedgepower` provides simulation-based design evaluation for stepped-wedge
 cluster randomized trials with aggregated binary outcomes. It connects the
 rollout schedule, data-generating assumptions, planned mixed model, and
 empirical operating characteristics in one reproducible workflow.
 
-Version 0.4.0 supports:
+Version 0.4.1 supports:
 
 - arbitrary binary stepped-wedge crossover schedules;
 - unequal clusters per sequence and flexible cluster-period sizes;
 - secular trends and latent-scale ICC input;
 - empirical power, type I error, bias, coverage, convergence, singularity, and
   Monte Carlo uncertainty;
+- explicit fit-outcome diagnostics separating hard GLMM errors,
+  nonconverged fits, converged fits with non-finite contrasts, singular fits,
+  and successful fits;
+- classic and batched stepped-wedge designs with delayed cluster initiation,
+  structurally unobserved cluster-periods, and explicit batch metadata;
+- calendar-time, time-on-trial, and separate batch-specific time models for
+  simulation, analysis, auditing, power, and type I error evaluation;
 - sensitivity grids and reproducible parallel simulation;
 - asynchronous cumulative schedules in which clusters move from Control to A
   and later add B at different times;
@@ -20,6 +29,8 @@ Version 0.4.0 supports:
   schedule auditing, conditional power, and failure-aware power;
 - a general component engine for Control, A, B, and A+B, including
   arbitrary withdrawal and reintroduction schedules;
+- structurally incomplete and batched stepped-wedge schedules in which dashes or
+  missing cells contribute no cluster-period outcome;
 - separate wash-in, restart, and carryover rules for A and B, together with an
   optional A-by-B interaction;
 - standard factorial contrasts, formal estimability checks, and comparisons of
@@ -68,7 +79,7 @@ summary(power)
 
 ## General Control, A, B, and A+B design
 
-Version 0.4.0 accepts arbitrary four-state schedules. In this example, some
+Version 0.4.1 accepts arbitrary four-state schedules. In this example, some
 sequences follow `Control -> A -> A+B -> B`, so A is withdrawn and its effect
 is allowed to decay over two periods. Other sequences begin with B before
 adding A.
@@ -118,9 +129,20 @@ fit$contrasts
 #   nsim = 5000, multiplicity = "holm", n_cores = 4, seed = 2026
 # )
 # summary(component_power)
+# component_power$fit_diagnostics
+# subset(
+#   component_power$replicate_diagnostics,
+#   fit_status != "successful_fit" | singular_fit
+# )
 ```
 
-The standard contrasts are A versus Control, B versus Control, A+B versus
+`fit_diagnostics` summarizes the primary mutually exclusive analysis outcomes:
+hard GLMM error, nonconverged fit, converged fit with a non-finite requested
+contrast, and successful fit. `singular_fit` is reported as a separate,
+non-exclusive property because a singular model may still converge and return
+finite contrasts.
+
+The standard contrasts are A versus Control, B versus Control, B versus A, A+B versus
 Control, A+B versus A, A+B versus B, and the A-by-B interaction. When a
 component is withdrawn, carryover weights are applied to its log-odds effect.
 The interaction can either follow overlap of the effective component weights
@@ -130,6 +152,79 @@ The installed demonstration is available at:
 
 ```r
 system.file("examples", "demo_component_four_state.R", package = "stepwedgepower")
+```
+
+## Classic SWD and batched stepped-wedge designs
+
+A batched stepped-wedge design (BSWD) allows clusters to begin trial
+participation in batches with staggered starts. A dash denotes a structurally
+unobserved clinic-period and is never recoded as Control. Version 0.4.1 stores
+calendar period and relative time since batch initiation; batch labels may be
+supplied directly or inferred from first observed periods.
+
+```r
+swd <- sw_batched_design(
+  clusters_per_sequence = c(5, 5),
+  state = rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2"),
+    `Group 2` = c("0", "0", "1", "1+2")
+  ),
+  batch = c("Batch 1", "Batch 1")
+)
+
+bswd <- sw_batched_design(
+  clusters_per_sequence = c(2, 2, 3, 3),
+  state = rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2", "-"),
+    `Group 2` = c("0", "0", "1", "1+2", "-"),
+    `Group 3` = c("-", "0", "1", "1+2", "1+2"),
+    `Group 4` = c("-", "0", "0", "1", "1+2")
+  ),
+  batch = c("Batch 1", "Batch 1", "Batch 2", "Batch 2")
+)
+
+batched_assumptions <- sw_batched_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.35,
+  treatment_or_b = 1.25,
+  interaction_mode = "none",
+  icc = 0.05,
+  n_per_cluster_period = 25,
+  time_model = "calendar",
+  time_effects = log(seq(1.00, 1.08, length.out = 5))
+)
+
+component_resource_summary(swd, batched_assumptions)
+component_resource_summary(bswd, batched_assumptions)
+# Both designs have 40 observed clinic-periods and 1,000 observations.
+```
+
+The BSWD interface supports calendar time, shared time on trial, and separate
+batch-specific time. It can compare designs under equal resources and can fit a
+different time model from the one used to generate data.
+
+```r
+contrasts <- c("A_vs_control", "AB_vs_A", "AB_vs_control")
+
+audit_batched_design(
+  bswd, batched_assumptions,
+  time_model = "separate",
+  contrasts = contrasts,
+  include_interaction = FALSE
+)
+
+# comparison <- compare_swd_bswd(
+#   swd, bswd, batched_assumptions,
+#   nsim = 5000, contrasts = contrasts,
+#   include_interaction = FALSE, multiplicity = "holm",
+#   n_cores = 4, seed = 2026
+# )
+```
+
+The installed demonstration is available at:
+
+```r
+system.file("examples", "demo_batched_SWD_BSWD.R", package = "stepwedgepower")
 ```
 
 ## Asynchronous Control to A to A+B design
@@ -199,6 +294,7 @@ system.file("examples", "demo_async_A_AB.R", package = "stepwedgepower")
 ```r
 vignette("stepped-wedge-design", package = "stepwedgepower")
 vignette("component-four-state", package = "stepwedgepower")
+vignette("incomplete-block-designs", package = "stepwedgepower")
 vignette("asynchronous-a-ab", package = "stepwedgepower")
 vignette("lpa-case-study", package = "stepwedgepower")
 ```

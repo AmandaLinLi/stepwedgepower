@@ -26,7 +26,7 @@ audit_component_design(
   \item{...}{Unused.}
 }
 \description{
-Checks treatment-state support, overlap by calendar period, withdrawal and restart patterns, fixed-effect rank, and estimability of requested contrasts.
+Checks observed treatment-state support, overlap by calendar period, resource counts, withdrawal and restart patterns, fixed-effect rank, and estimability of requested contrasts. Structurally unobserved cells are excluded from rank and overlap calculations but retained for latent exposure history.
 }
 \value{An object of class \code{sw_component_audit}.}
 \examples{

@@ -120,8 +120,18 @@ test_that("multistage power is reproducible and failure-aware", {
   expect_equal(first$raw_p_values, second$raw_p_values)
   expect_true(all(first$power_table$failure_aware_power <=
                     first$power_table$conditional_power, na.rm = TRUE))
-  expect_true(all(c("power_table", "estimation_table", "design_audit") %in%
-                    names(first)))
+  expect_true(all(c(
+    "power_table", "estimation_table", "design_audit",
+    "fit_diagnostics", "replicate_diagnostics", "fit_status",
+    "hard_glmm_error", "error_messages", "convergence_messages"
+  ) %in% names(first)))
+  expect_true(all(c(
+    "n_hard_glmm_error", "n_nonconverged_fit",
+    "n_converged_nonfinite_contrast", "n_singular_fit",
+    "n_successful_fit"
+  ) %in% names(first$power_table)))
+  primary <- first$fit_diagnostics$category != "singular_fit"
+  expect_equal(sum(first$fit_diagnostics$count[primary]), first$nsim)
 })
 
 test_that("two-state and three-state designs compare under one interface", {
