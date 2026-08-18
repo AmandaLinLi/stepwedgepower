@@ -143,11 +143,23 @@
   }
   merged$absolute_difference <- abs(compare_observed - compare_reference)
   merged$tolerance <- tolerance
+
+  # A comparison that is mathematically on the tolerance boundary can be
+  # represented a few machine units above that boundary. For example,
+  # abs(0.866 - 0.868) may be stored as 0.0020000000000000018. Add only
+  # scale-aware floating-point slack; this does not relax the substantive
+  # benchmark tolerance.
+  comparison_scale <- pmax(
+    1, abs(compare_observed), abs(compare_reference),
+    na.rm = TRUE
+  )
+  floating_slack <- 100 * .Machine$double.eps * comparison_scale
+
   merged$pass <- ifelse(
     merged$status %in% c("skipped", "reference_only"),
     NA,
     is.finite(merged$absolute_difference) &
-      merged$absolute_difference <= tolerance
+      merged$absolute_difference <= tolerance + floating_slack
   )
   merged$artifact <- artifact
   merged
@@ -155,11 +167,31 @@
 
 .sp_bench_stop_if_failed <- function(validation, strict, artifact) {
   if (!isTRUE(strict)) return(invisible(validation))
+
   failed <- !is.na(validation$pass) & !validation$pass
   if (any(failed)) {
+    failed_rows <- validation[failed, , drop = FALSE]
+    detail_columns <- intersect(
+      c(
+        "scenario", "method", "reference_power",
+        "reproduced_power", "absolute_difference", "tolerance",
+        "package_version", "status", "warning_message",
+        "error_message"
+      ),
+      names(failed_rows)
+    )
+    details <- paste(
+      capture.output(print(
+        failed_rows[, detail_columns, drop = FALSE],
+        row.names = FALSE, digits = 8
+      )),
+      collapse = "\n"
+    )
     stop(
-      artifact, " benchmark failed for ",
-      sum(failed), " comparison(s). See the validation table.",
+      paste0(
+        artifact, " benchmark failed for ", sum(failed),
+        " comparison(s):\n", details
+      ),
       call. = FALSE
     )
   }
