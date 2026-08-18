@@ -128,7 +128,13 @@ power_three <- power_multistage_swcrt(
 )
 summary(power_three)
 plot(power_three, type = "failure-aware")
+power_three$fit_diagnostics
+power_three$replicate_diagnostics
 ```
+
+The primary fit statuses are hard GLMM error, nonconverged fit, converged fit
+with a non-finite requested contrast, and successful fit. Singular fit is a
+separate, non-exclusive property.
 
 The output distinguishes conditional power among usable fits from
 failure-aware power, which counts a failed or non-estimable analysis as an

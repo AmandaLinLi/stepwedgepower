@@ -1,21 +1,32 @@
-# Development validation for version 0.4.0
+# Development validation for version 0.4.1
 
-The component engine was subjected to the following development checks in the
-build environment:
+Version 0.4.1 adds a batch-aware interface grounded in the standard terminology
+for classic and batched stepped-wedge designs. Static checks in the build
+environment verified balanced R delimiters, DESCRIPTION continuation structure,
+Rd braces, NAMESPACE/function/documentation consistency, preservation of all
+0.4.0 exports, and the exact SWD/BSWD resource totals (40 observed
+clinic-periods in each design; 10 structurally unobserved clinic-periods in the
+BSWD).
 
-- all R source files were parsed with an R grammar;
-- all Rd files were parsed with `tools::parse_Rd()`;
-- `DESCRIPTION` was read with `read.dcf()`;
-- deterministic tests covered state coding, withdrawal, wash-in, carryover,
-  restart rules, interaction weights, conversion from the 0.3.0 cumulative
-  representation, fixed-effect rank, and standard-contrast estimability;
-- randomized property tests covered 100 arbitrary four-state schedules and
-  verified simulation dimensions, state/component consistency, effect-weight
-  bounds, interaction rules, sample sizes, probabilities, outcomes, and audit
-  construction.
+The new API supports calendar time, shared time on trial, and separate
+batch-specific time. The separate model uses a categorical batch-by-local-time
+factor. For the exact SWD/BSWD schedules in the vignette, independent model-
+matrix checks found full rank under every supported no-interaction time model:
 
-A native `R CMD check` with `lme4` was not available in the build environment.
-Before release, run:
+| Design | Calendar time | Time on trial | Separate time |
+|---|---:|---:|---:|
+| SWD | 6 / 6 | 6 / 6 | 6 / 6 |
+| BSWD | 7 / 7 | 6 / 6 | 10 / 10 |
+
+All 0.3.0 cumulative-intervention functions and all 0.4.0 component functions
+remain available. No existing exported function was removed. The new batched
+functions default to a no-interaction model because the common cumulative
+Control/A/A+B schedule contains no B-only state; four-state designs can request
+the interaction explicitly.
+
+R and lme4 were not installed in the build environment. Native GLMM execution,
+testthat, vignette rendering, roxygen regeneration, and R CMD check therefore
+must be run locally before release:
 
 ```r
 devtools::document()
@@ -26,4 +37,4 @@ devtools::check_win_devel()
 devtools::check_mac_release()
 ```
 
-Then build the CRAN archive with `devtools::build()`.
+Build the final CRAN archive locally with `devtools::build()`.

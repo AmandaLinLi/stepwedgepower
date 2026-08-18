@@ -5,7 +5,7 @@
 \alias{print.sw_multistage_power}
 \alias{summary.sw_multistage_power}
 \alias{plot.sw_multistage_power}
-\title{Methods for multistage stepped-wedge power objects}
+\title{Print, summarize, and plot multistage stepped-wedge power objects, including the detailed fit-diagnostic classification.}
 \usage{
 \method{print}{sw_multistage_power}(x, ...)
 

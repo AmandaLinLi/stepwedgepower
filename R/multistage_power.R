@@ -30,7 +30,10 @@
 #'   for a rank-deficient or non-estimable default model.
 #' @param warn_on_design Logical; emit non-fatal design-audit cautions.
 #'
-#' @return An object of class `"sw_multistage_power"`.
+#' @return An object of class `"sw_multistage_power"`. The
+#'   `fit_diagnostics` element reports hard GLMM errors, nonconverged fits,
+#'   converged fits with non-finite contrasts, singular fits, and successful
+#'   fits. The `replicate_diagnostics` element retains one row per simulation.
 #' @examples
 #' \donttest{
 #' design <- sw_multistage_design(
@@ -157,9 +160,16 @@ power_multistage_swcrt <- function(
       raw_p = raw_p,
       adjusted_p = adjusted,
       joint_success = fit$joint_success,
+      hard_error = isTRUE(fit$hard_error),
+      fit_status = fit$fit_status,
       converged = isTRUE(fit$converged),
       singular = fit$singular,
       has_warning = length(fit$warnings) > 0L,
+      nonfinite_contrasts = paste(fit$nonfinite_contrasts, collapse = ", "),
+      optimizer_code = fit$optimizer_code,
+      error_message = .collapse_diagnostic_messages(fit$error),
+      convergence_message =
+        .collapse_diagnostic_messages(fit$convergence_messages),
       warnings = fit$warnings,
       error = fit$error
     )
@@ -184,11 +194,39 @@ power_multistage_swcrt <- function(
     "adjusted_p",
     c("A_vs_control", "AB_vs_A")
   )
+  hard_error <- vapply(replicates, function(x) x$hard_error, logical(1))
+  fit_status <- vapply(replicates, function(x) x$fit_status, character(1))
   converged <- vapply(replicates, function(x) x$converged, logical(1))
   singular <- vapply(replicates, function(x) {
     if (length(x$singular) == 0L || is.na(x$singular)) NA else isTRUE(x$singular)
   }, logical(1))
   has_warning <- vapply(replicates, function(x) x$has_warning, logical(1))
+  nonfinite_contrasts <- vapply(
+    replicates, function(x) x$nonfinite_contrasts, character(1)
+  )
+  optimizer_code <- vapply(
+    replicates,
+    function(x) if (is.null(x$optimizer_code) || is.na(x$optimizer_code)) {
+      NA_character_
+    } else {
+      as.character(x$optimizer_code)
+    },
+    character(1)
+  )
+  error_message <- vapply(
+    replicates,
+    function(x) if (is.null(x$error_message)) NA_character_ else x$error_message,
+    character(1)
+  )
+  convergence_message <- vapply(
+    replicates,
+    function(x) if (is.null(x$convergence_message)) {
+      NA_character_
+    } else {
+      x$convergence_message
+    },
+    character(1)
+  )
   joint_success <- vapply(replicates, function(x) {
     if (length(x$joint_success) == 0L || is.na(x$joint_success)) NA else isTRUE(x$joint_success)
   }, logical(1))
@@ -197,6 +235,8 @@ power_multistage_swcrt <- function(
   power_rows[[length(power_rows) + 1L]] <- .summarize_multistage_test(
     p_values = raw_p[, "A_vs_control"],
     converged = converged,
+    hard_error = hard_error,
+    singular = singular,
     nsim = nsim,
     alpha = alpha,
     test = "A_vs_control_raw",
@@ -206,25 +246,45 @@ power_multistage_swcrt <- function(
 
   if (has_b) {
     power_rows[[length(power_rows) + 1L]] <- .summarize_multistage_test(
-      raw_p[, "AB_vs_A"], converged, nsim, alpha,
+      p_values = raw_p[, "AB_vs_A"],
+      converged = converged,
+      hard_error = hard_error,
+      singular = singular,
+      nsim = nsim,
+      alpha = alpha,
       test = "AB_vs_A_raw",
       label = "A+B vs A: incremental B (unadjusted)",
       adjustment = "none"
     )
     power_rows[[length(power_rows) + 1L]] <- .summarize_multistage_test(
-      raw_p[, "AB_vs_control"], converged, nsim, alpha,
+      p_values = raw_p[, "AB_vs_control"],
+      converged = converged,
+      hard_error = hard_error,
+      singular = singular,
+      nsim = nsim,
+      alpha = alpha,
       test = "AB_vs_control_raw",
       label = "A+B vs Control: total effect",
       adjustment = "none"
     )
     power_rows[[length(power_rows) + 1L]] <- .summarize_multistage_test(
-      adjusted_p[, "A_vs_control"], converged, nsim, alpha,
+      p_values = adjusted_p[, "A_vs_control"],
+      converged = converged,
+      hard_error = hard_error,
+      singular = singular,
+      nsim = nsim,
+      alpha = alpha,
       test = "A_vs_control_adjusted",
       label = paste0("A vs Control (", multiplicity, "-adjusted)"),
       adjustment = multiplicity
     )
     power_rows[[length(power_rows) + 1L]] <- .summarize_multistage_test(
-      adjusted_p[, "AB_vs_A"], converged, nsim, alpha,
+      p_values = adjusted_p[, "AB_vs_A"],
+      converged = converged,
+      hard_error = hard_error,
+      singular = singular,
+      nsim = nsim,
+      alpha = alpha,
       test = "AB_vs_A_adjusted",
       label = paste0("A+B vs A (", multiplicity, "-adjusted)"),
       adjustment = multiplicity
@@ -232,6 +292,8 @@ power_multistage_swcrt <- function(
     power_rows[[length(power_rows) + 1L]] <- .summarize_multistage_indicator(
       indicator = joint_success,
       converged = converged,
+      hard_error = hard_error,
+      singular = singular,
       nsim = nsim,
       alpha = alpha,
       test = "joint_component_success",
@@ -265,15 +327,24 @@ power_multistage_swcrt <- function(
   estimation_table <- do.call(rbind, estimation_rows)
   rownames(estimation_table) <- NULL
 
-  fit_success <- converged & is.finite(raw_p[, "A_vs_control"])
-  if (has_b) {
-    fit_success <- fit_success & is.finite(raw_p[, "AB_vs_A"])
-  }
+  replicate_diagnostics <- .make_replicate_diagnostics(
+    fit_status = fit_status,
+    singular = singular,
+    has_warning = has_warning,
+    nonfinite_contrasts = nonfinite_contrasts,
+    error_message = error_message,
+    convergence_message = convergence_message,
+    optimizer_code = optimizer_code
+  )
+  fit_diagnostics <- .summarize_fit_diagnostics(replicate_diagnostics)
+  fit_success <- replicate_diagnostics$successful_fit
 
   structure(
     list(
       power_table = power_table,
       estimation_table = estimation_table,
+      fit_diagnostics = fit_diagnostics,
+      replicate_diagnostics = replicate_diagnostics,
       alpha = alpha,
       nsim = nsim,
       multiplicity = multiplicity,
@@ -285,13 +356,24 @@ power_multistage_swcrt <- function(
       } else {
         NA_real_
       },
+      singular_rate_all = mean(singular %in% TRUE),
+      hard_glmm_error_rate = mean(hard_error),
+      nonconverged_fit_rate = mean(fit_status == "nonconverged_fit"),
+      nonfinite_contrast_fit_rate = mean(
+        fit_status == "converged_nonfinite_contrast"
+      ),
       warning_rate = mean(has_warning),
       raw_p_values = raw_p,
       adjusted_p_values = adjusted_p,
       estimated_effects = estimates,
       estimated_ses = standard_errors,
+      fit_status = fit_status,
+      hard_glmm_error = hard_error,
       convergence_status = converged,
       singular_fit = singular,
+      error_messages = error_message,
+      convergence_messages = convergence_message,
+      nonfinite_contrasts = nonfinite_contrasts,
       joint_success = joint_success,
       design_audit = audit,
       design = design,
@@ -319,38 +401,55 @@ power_multistage_swcrt <- function(
 .summarize_multistage_test <- function(
   p_values,
   converged,
+  hard_error,
+  singular,
   nsim,
   alpha,
   test,
   label,
   adjustment
 ) {
-  evaluable <- converged & is.finite(p_values)
+  diagnostics <- .analysis_evaluability_counts(
+    finite_result = is.finite(p_values),
+    converged = converged,
+    hard_error = hard_error,
+    singular = singular
+  )
+  evaluable <- diagnostics$successful_fit
   reject <- evaluable & p_values < alpha
   .summarize_multistage_rejection(
-    reject, evaluable, nsim, alpha, test, label, adjustment
+    reject, evaluable, diagnostics, nsim, alpha, test, label, adjustment
   )
 }
 
 .summarize_multistage_indicator <- function(
   indicator,
   converged,
+  hard_error,
+  singular,
   nsim,
   alpha,
   test,
   label,
   adjustment
 ) {
-  evaluable <- converged & !is.na(indicator)
+  diagnostics <- .analysis_evaluability_counts(
+    finite_result = !is.na(indicator),
+    converged = converged,
+    hard_error = hard_error,
+    singular = singular
+  )
+  evaluable <- diagnostics$successful_fit
   reject <- evaluable & indicator
   .summarize_multistage_rejection(
-    reject, evaluable, nsim, alpha, test, label, adjustment
+    reject, evaluable, diagnostics, nsim, alpha, test, label, adjustment
   )
 }
 
 .summarize_multistage_rejection <- function(
   reject,
   evaluable,
+  diagnostics,
   nsim,
   alpha,
   test,
@@ -392,6 +491,13 @@ power_multistage_swcrt <- function(
     n_rejected = n_rejected,
     n_evaluable = n_evaluable,
     n_failed = nsim - n_evaluable,
+    n_hard_glmm_error = diagnostics$n_hard_glmm_error,
+    n_nonconverged_fit = diagnostics$n_nonconverged_fit,
+    n_converged_nonfinite_contrast =
+      diagnostics$n_converged_nonfinite_contrast,
+    n_singular_fit = diagnostics$n_singular_fit,
+    n_singular_evaluable_fit = diagnostics$n_singular_successful_fit,
+    n_successful_fit = diagnostics$n_successful_fit,
     nsim = nsim,
     stringsAsFactors = FALSE
   )
@@ -547,13 +653,20 @@ print.sw_multistage_power <- function(x, ...) {
     "n_evaluable", "n_failed"
   ), drop = FALSE]
   names(display) <- c(
-    "test", "conditional", "failure_aware", "evaluable", "failed"
+    "test", "conditional", "failure_aware", "evaluable", "non_evaluable"
   )
   print(display, row.names = FALSE, digits = 3)
-  cat(sprintf(
-    "\n  nsim = %d; convergence %.3f; fit success %.3f; singular %.3f\n",
-    x$nsim, x$convergence_rate, x$fit_success_rate, x$singular_rate
-  ))
+  cat("\nFit diagnostics\n")
+  diagnostic_display <- x$fit_diagnostics[, c(
+    "label", "count", "rate"
+  ), drop = FALSE]
+  names(diagnostic_display) <- c("category", "count", "rate")
+  print(diagnostic_display, row.names = FALSE, digits = 3)
+  cat(
+    "  Note: singular fit is a non-exclusive flag and may overlap with ",
+    "successful fit.\n",
+    sep = ""
+  )
   invisible(x)
 }
 

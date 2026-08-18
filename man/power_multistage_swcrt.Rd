@@ -49,7 +49,7 @@ for a rank-deficient or non-estimable default model.}
 \item{warn_on_design}{Logical; emit non-fatal design-audit cautions.}
 }
 \value{
-An object of class \code{"sw_multistage_power"}.
+An object of class \code{"sw_multistage_power"}. The \code{fit_diagnostics} table reports aggregate counts and rates for hard GLMM errors, nonconverged fits, converged fits with non-finite contrasts, singular fits, and successful fits. The \code{replicate_diagnostics} table retains one row per simulation with messages and non-finite contrast names.
 }
 \description{
 Repeatedly simulates a cumulative-intervention stepped-wedge trial and fits
@@ -63,8 +63,7 @@ Two power definitions are reported. \strong{Conditional power} uses only
 replicates in which the planned analysis converged and produced the relevant
 test. \strong{Failure-aware power} divides the same number of rejections by all
 simulated trials, treating an unusable analysis as an unsuccessful trial.
-Their difference reveals how much nominal performance depends on silently
-discarding failed fits.
+Their difference reveals how much nominal performance depends on silently discarding failed fits. A fit is classified as successful when it converges and every reported raw contrast has a finite p-value. Singularity is tracked as an additional non-exclusive property and is not automatically treated as failure.
 }
 \examples{
 \donttest{

@@ -135,6 +135,17 @@ test_that("component power is reproducible and failure-aware", {
   expect_equal(first$raw_p_values, second$raw_p_values)
   expect_true(all(first$power_table$failure_aware_power <=
                     first$power_table$conditional_power, na.rm = TRUE))
+  expect_true(all(c(
+    "fit_diagnostics", "replicate_diagnostics", "fit_status",
+    "hard_glmm_error", "error_messages", "convergence_messages"
+  ) %in% names(first)))
+  expect_true(all(c(
+    "n_hard_glmm_error", "n_nonconverged_fit",
+    "n_converged_nonfinite_contrast", "n_singular_fit",
+    "n_successful_fit"
+  ) %in% names(first$power_table)))
+  primary <- first$fit_diagnostics$category != "singular_fit"
+  expect_equal(sum(first$fit_diagnostics$count[primary]), first$nsim)
 })
 
 test_that("cumulative designs convert to component coding", {
@@ -324,4 +335,57 @@ test_that("incomplete design audit uses observed cells", {
   expect_equal(audit$observed_cluster_periods, 40L)
   expect_equal(audit$missing_cluster_periods, 10L)
   expect_equal(audit$observed_sequences_per_period, c(2L, 4L, 4L, 4L, 2L))
+})
+
+test_that("fit diagnostic categories are explicit and internally consistent", {
+  counts <- .analysis_evaluability_counts(
+    finite_result = c(FALSE, FALSE, FALSE, TRUE, TRUE),
+    converged = c(FALSE, FALSE, TRUE, TRUE, TRUE),
+    hard_error = c(TRUE, FALSE, FALSE, FALSE, FALSE),
+    singular = c(NA, FALSE, FALSE, TRUE, FALSE)
+  )
+  expect_equal(counts$n_hard_glmm_error, 1L)
+  expect_equal(counts$n_nonconverged_fit, 1L)
+  expect_equal(counts$n_converged_nonfinite_contrast, 1L)
+  expect_equal(counts$n_singular_fit, 1L)
+  expect_equal(counts$n_successful_fit, 2L)
+
+  replicate_diagnostics <- .make_replicate_diagnostics(
+    fit_status = c(
+      "hard_glmm_error", "nonconverged_fit",
+      "converged_nonfinite_contrast", "successful_fit", "successful_fit"
+    ),
+    singular = c(NA, FALSE, FALSE, TRUE, FALSE),
+    has_warning = c(FALSE, TRUE, FALSE, FALSE, FALSE),
+    nonfinite_contrasts = c("A_vs_control", "", "AB_vs_A", "", ""),
+    error_message = c("fit failed", NA, NA, NA, NA),
+    convergence_message = c(NA, "did not converge", NA, NA, NA),
+    optimizer_code = c(NA, "1", "0", "0", "0")
+  )
+  summary <- .summarize_fit_diagnostics(replicate_diagnostics)
+  primary <- summary$category != "singular_fit"
+  expect_equal(sum(summary$count[primary]), 5L)
+  expect_equal(
+    summary$count[summary$category == "successful_fit"],
+    2L
+  )
+  expect_equal(
+    summary$count[summary$category == "singular_fit"],
+    1L
+  )
+})
+
+test_that("singularity messages are advisory rather than nonconvergence", {
+  messages <- .partition_lme4_messages(c(
+    "boundary (singular) fit: see help('isSingular')",
+    "Model failed to converge with max|grad| = 0.01"
+  ))
+  expect_equal(
+    messages$advisory,
+    "boundary (singular) fit: see help('isSingular')"
+  )
+  expect_equal(
+    messages$convergence,
+    "Model failed to converge with max|grad| = 0.01"
+  )
 })

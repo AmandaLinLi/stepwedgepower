@@ -87,7 +87,7 @@ audit
 ```
 
 The audit checks the rank of the intended fixed-effect model and formal
-estimability of six standard contrasts. It also reports concurrent state
+estimability of seven standard contrasts. It also reports concurrent state
 comparisons and notes any withdrawal for which immediate washout has been
 assumed.
 
@@ -107,6 +107,7 @@ The standard contrasts are:
 
 * A versus Control;
 * B versus Control;
+* B versus A;
 * A+B versus Control;
 * A+B versus A;
 * A+B versus B; and
@@ -134,6 +135,8 @@ power <- power_component_swcrt(
   seed = 2026
 )
 summary(power)
+power$fit_diagnostics
+power$replicate_diagnostics
 
 type1 <- type1_component_swcrt(
   design,
@@ -147,6 +150,10 @@ type1 <- type1_component_swcrt(
 )
 summary(type1)
 ```
+
+The primary fit statuses are hard GLMM error, nonconverged fit, converged fit
+with a non-finite requested contrast, and successful fit. Singular fit is a
+separate, non-exclusive property.
 
 Both conditional power and failure-aware power are reported. Their difference
 shows how much the apparent operating performance depends on excluding failed

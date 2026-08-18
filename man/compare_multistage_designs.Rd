@@ -66,8 +66,7 @@ for a rank-deficient or non-estimable default model.}
 \item{...}{Unused.}
 }
 \value{
-An object of class \code{"sw_multistage_comparison"} containing both
-power objects, a stacked comparison table, and a resource check.
+An object of class \code{"sw_multistage_comparison"} containing both power objects, a stacked comparison table, a combined fit-diagnostics table, and a resource check.
 }
 \description{
 Runs \code{\link[=power_multistage_swcrt]{power_multistage_swcrt()}} for two candidate schedules, commonly a

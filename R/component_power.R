@@ -5,7 +5,10 @@
 #' from failure-aware power, which counts unusable analyses as unsuccessful
 #' trials. It also reports estimation bias, standard-error calibration,
 #' confidence-interval coverage, convergence, singularity, and Monte Carlo
-#' uncertainty for every requested contrast.
+#' uncertainty for every requested contrast. Fit diagnostics separately report
+#' hard GLMM errors, nonconverged fits, converged fits with non-finite requested
+#' contrasts, singular fits, and successful fits. Singularity is a non-exclusive
+#' flag and does not automatically make a fit unsuccessful.
 #'
 #' @param design An [sw_component_design()] object.
 #' @param assumptions An [sw_component_assumptions()] object.
@@ -25,7 +28,10 @@
 #' @param check_design Logical; run [audit_component_design()] first.
 #' @param warn_on_design Logical; warn when the audit returns cautions.
 #'
-#' @return An object of class `"sw_component_power"`.
+#' @return An object of class `"sw_component_power"`. In addition to the
+#'   power and estimation tables, `fit_diagnostics` gives aggregate counts and
+#'   rates for the five fit categories, and `replicate_diagnostics` gives one
+#'   row per simulation with error and convergence messages.
 #' @examples
 #' \donttest{
 #' state <- rbind(
@@ -191,9 +197,16 @@ power_component_swcrt <- function(
       adjusted_p = fit$adjusted_p_values,
       estimate = estimates,
       se = standard_errors,
+      hard_error = isTRUE(fit$hard_error),
+      fit_status = fit$fit_status,
       converged = isTRUE(fit$converged),
       singular = if (is.na(fit$singular)) NA else isTRUE(fit$singular),
       has_warning = length(fit$warnings) > 0L,
+      nonfinite_contrasts = paste(fit$nonfinite_contrasts, collapse = ", "),
+      optimizer_code = fit$optimizer_code,
+      error_message = .collapse_diagnostic_messages(fit$error),
+      convergence_message =
+        .collapse_diagnostic_messages(fit$convergence_messages),
       joint_success = fit$joint_success
     )
   }
@@ -207,9 +220,37 @@ power_component_swcrt <- function(
   )
   estimates <- .component_bind_numeric(replicates, "estimate", contrasts)
   standard_errors <- .component_bind_numeric(replicates, "se", contrasts)
+  hard_error <- vapply(replicates, function(x) x$hard_error, logical(1))
+  fit_status <- vapply(replicates, function(x) x$fit_status, character(1))
   converged <- vapply(replicates, function(x) x$converged, logical(1))
   singular <- vapply(replicates, function(x) x$singular, logical(1))
   has_warning <- vapply(replicates, function(x) x$has_warning, logical(1))
+  nonfinite_contrasts <- vapply(
+    replicates, function(x) x$nonfinite_contrasts, character(1)
+  )
+  optimizer_code <- vapply(
+    replicates,
+    function(x) if (is.null(x$optimizer_code) || is.na(x$optimizer_code)) {
+      NA_character_
+    } else {
+      as.character(x$optimizer_code)
+    },
+    character(1)
+  )
+  error_message <- vapply(
+    replicates,
+    function(x) if (is.null(x$error_message)) NA_character_ else x$error_message,
+    character(1)
+  )
+  convergence_message <- vapply(
+    replicates,
+    function(x) if (is.null(x$convergence_message)) {
+      NA_character_
+    } else {
+      x$convergence_message
+    },
+    character(1)
+  )
   joint_success <- vapply(
     replicates,
     function(x) if (is.null(x$joint_success)) NA else x$joint_success,
@@ -221,6 +262,8 @@ power_component_swcrt <- function(
     .summarize_component_test(
       p_values = raw_p[, name],
       converged = converged,
+      hard_error = hard_error,
+      singular = singular,
       nsim = nsim,
       alpha = alpha,
       test = paste0(name, "_raw"),
@@ -234,6 +277,8 @@ power_component_swcrt <- function(
     .summarize_component_test(
       p_values = adjusted_p[, name],
       converged = converged,
+      hard_error = hard_error,
+      singular = singular,
       nsim = nsim,
       alpha = alpha,
       test = paste0(name, "_adjusted"),
@@ -248,6 +293,8 @@ power_component_swcrt <- function(
     joint_rows <- list(.summarize_component_indicator(
       indicator = joint_success,
       converged = converged,
+      hard_error = hard_error,
+      singular = singular,
       nsim = nsim,
       alpha = alpha,
       test = "joint_family_success",
@@ -278,12 +325,24 @@ power_component_swcrt <- function(
   estimation_table <- do.call(rbind, estimation_rows)
   rownames(estimation_table) <- NULL
 
-  fit_success <- converged & apply(raw_p, 1L, function(x) all(is.finite(x)))
+  replicate_diagnostics <- .make_replicate_diagnostics(
+    fit_status = fit_status,
+    singular = singular,
+    has_warning = has_warning,
+    nonfinite_contrasts = nonfinite_contrasts,
+    error_message = error_message,
+    convergence_message = convergence_message,
+    optimizer_code = optimizer_code
+  )
+  fit_diagnostics <- .summarize_fit_diagnostics(replicate_diagnostics)
+  fit_success <- replicate_diagnostics$successful_fit
 
   structure(
     list(
       power_table = power_table,
       estimation_table = estimation_table,
+      fit_diagnostics = fit_diagnostics,
+      replicate_diagnostics = replicate_diagnostics,
       alpha = alpha,
       nsim = nsim,
       contrasts = contrasts,
@@ -298,13 +357,24 @@ power_component_swcrt <- function(
       } else {
         NA_real_
       },
+      singular_rate_all = mean(singular %in% TRUE),
+      hard_glmm_error_rate = mean(hard_error),
+      nonconverged_fit_rate = mean(fit_status == "nonconverged_fit"),
+      nonfinite_contrast_fit_rate = mean(
+        fit_status == "converged_nonfinite_contrast"
+      ),
       warning_rate = mean(has_warning),
       raw_p_values = raw_p,
       adjusted_p_values = adjusted_p,
       estimated_effects = estimates,
       estimated_ses = standard_errors,
+      fit_status = fit_status,
+      hard_glmm_error = hard_error,
       convergence_status = converged,
       singular_fit = singular,
+      error_messages = error_message,
+      convergence_messages = convergence_message,
+      nonfinite_contrasts = nonfinite_contrasts,
       joint_success = joint_success,
       design_audit = audit,
       design = design,
@@ -334,6 +404,8 @@ power_component_swcrt <- function(
 .summarize_component_test <- function(
   p_values,
   converged,
+  hard_error,
+  singular,
   nsim,
   alpha,
   test,
@@ -341,16 +413,25 @@ power_component_swcrt <- function(
   label,
   adjustment
 ) {
-  evaluable <- converged & is.finite(p_values)
+  diagnostics <- .analysis_evaluability_counts(
+    finite_result = is.finite(p_values),
+    converged = converged,
+    hard_error = hard_error,
+    singular = singular
+  )
+  evaluable <- diagnostics$successful_fit
   reject <- evaluable & p_values < alpha
   .summarize_component_rejection(
-    reject, evaluable, nsim, alpha, test, contrast, label, adjustment
+    reject, evaluable, diagnostics, nsim, alpha,
+    test, contrast, label, adjustment
   )
 }
 
 .summarize_component_indicator <- function(
   indicator,
   converged,
+  hard_error,
+  singular,
   nsim,
   alpha,
   test,
@@ -358,16 +439,24 @@ power_component_swcrt <- function(
   label,
   adjustment
 ) {
-  evaluable <- converged & !is.na(indicator)
+  diagnostics <- .analysis_evaluability_counts(
+    finite_result = !is.na(indicator),
+    converged = converged,
+    hard_error = hard_error,
+    singular = singular
+  )
+  evaluable <- diagnostics$successful_fit
   reject <- evaluable & indicator
   .summarize_component_rejection(
-    reject, evaluable, nsim, alpha, test, contrast, label, adjustment
+    reject, evaluable, diagnostics, nsim, alpha,
+    test, contrast, label, adjustment
   )
 }
 
 .summarize_component_rejection <- function(
   reject,
   evaluable,
+  diagnostics,
   nsim,
   alpha,
   test,
@@ -410,6 +499,13 @@ power_component_swcrt <- function(
     n_rejected = n_rejected,
     n_evaluable = n_evaluable,
     n_failed = nsim - n_evaluable,
+    n_hard_glmm_error = diagnostics$n_hard_glmm_error,
+    n_nonconverged_fit = diagnostics$n_nonconverged_fit,
+    n_converged_nonfinite_contrast =
+      diagnostics$n_converged_nonfinite_contrast,
+    n_singular_fit = diagnostics$n_singular_fit,
+    n_singular_evaluable_fit = diagnostics$n_singular_successful_fit,
+    n_successful_fit = diagnostics$n_successful_fit,
     nsim = nsim,
     stringsAsFactors = FALSE
   )
@@ -564,13 +660,20 @@ print.sw_component_power <- function(x, ...) {
     "n_evaluable", "n_failed"
   ), drop = FALSE]
   names(display) <- c(
-    "test", "conditional", "failure_aware", "evaluable", "failed"
+    "test", "conditional", "failure_aware", "evaluable", "non_evaluable"
   )
   print(display, row.names = FALSE, digits = 3)
-  cat(sprintf(
-    "\n  nsim = %d; convergence %.3f; fit success %.3f; singular %.3f\n",
-    x$nsim, x$convergence_rate, x$fit_success_rate, x$singular_rate
-  ))
+  cat("\nFit diagnostics\n")
+  diagnostic_display <- x$fit_diagnostics[, c(
+    "label", "count", "rate"
+  ), drop = FALSE]
+  names(diagnostic_display) <- c("category", "count", "rate")
+  print(diagnostic_display, row.names = FALSE, digits = 3)
+  cat(
+    "  Note: singular fit is a non-exclusive flag and may overlap with ",
+    "successful fit.\n",
+    sep = ""
+  )
   invisible(x)
 }
 

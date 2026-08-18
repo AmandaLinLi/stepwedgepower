@@ -3,6 +3,7 @@
     out <- rbind(
       A_vs_control = c(a = 1, b = 0, ab = 0),
       B_vs_control = c(a = 0, b = 1, ab = 0),
+      B_vs_A = c(a = -1, b = 1, ab = 0),
       AB_vs_control = c(a = 1, b = 1, ab = 1),
       AB_vs_A = c(a = 0, b = 1, ab = 1),
       AB_vs_B = c(a = 1, b = 0, ab = 1),
@@ -12,6 +13,7 @@
     out <- rbind(
       A_vs_control = c(a = 1, b = 0, ab = 0),
       B_vs_control = c(a = 0, b = 1, ab = 0),
+      B_vs_A = c(a = -1, b = 1, ab = 0),
       AB_vs_control = c(a = 1, b = 1, ab = 0),
       AB_vs_A = c(a = 0, b = 1, ab = 0),
       AB_vs_B = c(a = 1, b = 0, ab = 0)
@@ -24,6 +26,7 @@
   c(
     A_vs_control = "A vs Control",
     B_vs_control = "B vs Control",
+    B_vs_A = "B vs A",
     AB_vs_control = "A+B vs Control",
     AB_vs_A = "A+B vs A",
     AB_vs_B = "A+B vs B",

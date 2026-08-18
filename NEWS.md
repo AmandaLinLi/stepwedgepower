@@ -1,3 +1,47 @@
+# stepwedgepower 0.4.1
+
+## Batched stepped-wedge terminology and design objects
+* Replaced the provisional term "block stepped-wedge design" with the standard
+  term **batched stepped-wedge design (BSWD)**. A BSWD is represented as a
+  structurally incomplete stepped-wedge design whose batches begin trial
+  participation at staggered calendar periods.
+* Added `sw_batched_design()` and `as_batched_design()`. Batch-aware design
+  objects retain the treatment schedule and observation mask while adding
+  batch labels, batch initiation periods, delays from the first batch, gaps
+  from the preceding batch, calendar period, and relative time since batch
+  initiation (`time_on_trial`). Batch labels can be supplied or inferred from
+  first observed periods.
+
+## Three time-effect parameterizations
+* Added `sw_batched_assumptions()` for data generation under a calendar-time,
+  shared time-on-trial, or separate batch-specific time model.
+* Added `simulate_batched_swcrt()`, `fit_batched_model()`, and
+  `audit_batched_design()`. The separate time model uses a categorical
+  batch-by-local-time factor and supports batches with unequal observed
+  lengths; the calendar model shares secular effects by calendar period; and
+  the time-on-trial model shares relative-time effects across batches.
+* Added `power_batched_swcrt()` and `type1_batched_swcrt()` so the generating
+  and fitted time models can be matched or intentionally differed in a
+  reproducible simulation study.
+* The batched functions default to a no-interaction component model, which is
+  appropriate for cumulative Control/A/A+B schedules without a B-only state;
+  four-state designs can request the A-by-B interaction explicitly.
+
+## SWD/BSWD comparisons
+* Added `compare_batched_designs()`, `compare_swd_bswd()`, and
+  `compare_batched_time_models()` for equal-resource comparisons of classic
+  SWD and BSWD schedules and for sensitivity analysis across the three time
+  parameterizations.
+* Added the adjacent component contrast `B_vs_A`, completing the standard
+  comparisons needed for paths such as Control -> A -> B -> A+B.
+* Renamed the incomplete-design vignette to
+  `vignette("batched-stepped-wedge-designs")` and updated the installed SWD/BSWD
+  demonstration to use the batch-aware interface.
+
+## Compatibility
+* All 0.3.0 cumulative-intervention functions and all 0.4.0 component-design
+  functions remain available. The 0.4.1 batched interface is additive.
+
 # stepwedgepower 0.4.0
 
 ## General component-based designs
@@ -8,7 +52,7 @@
 * Added `as_component_design()` to convert the version 0.3.0 cumulative
   Control/A/A+B design into the general representation.
 
-## Structurally incomplete and block stepped-wedge designs
+## Structurally incomplete and batched stepped-wedge designs
 * Added an `observed` mask to `sw_component_design()`. Cells marked `FALSE`
   retain their latent treatment history but contribute no outcome and no row
   to the fitted model.
@@ -20,7 +64,7 @@
   sequence-periods, cluster-periods, and total individual observations.
 * Updated simulation, design auditing, model fitting, power calculation, and
   cross-design comparison to use only observed cluster-periods. This supports
-  block stepped-wedge designs in which different sequence groups are observed
+  batched stepped-wedge designs in which different sequence groups are observed
   over different calendar windows.
 
 ## Wash-in, withdrawal, and carryover
@@ -51,6 +95,13 @@
   coverage, convergence, singularity, and warning diagnostics.
 * Added `compare_component_designs()` for equal-resource or unequal-resource
   comparisons of two or more candidate component schedules.
+* Expanded simulation diagnostics to distinguish hard GLMM errors,
+  nonconverged fits, converged fits with non-finite requested contrasts,
+  singular fits, and successful fits. Power objects now contain aggregate
+  `fit_diagnostics`, per-simulation `replicate_diagnostics`, retained error and
+  convergence messages, and the same breakdown in every power-table row.
+  Singularity is reported as a non-exclusive property and does not by itself
+  make an otherwise evaluable fit unsuccessful.
 * Added a four-state vignette and an installed demonstration script showing a
   Control -> A -> A+B -> B withdrawal path alongside Control -> B -> A+B paths.
 

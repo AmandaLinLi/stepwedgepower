@@ -85,6 +85,16 @@ power <- power_component_swcrt(
   warn_on_design = FALSE
 )
 summary(power)
+cat("\nDetailed fit diagnostics\n")
+print(power$fit_diagnostics, row.names = FALSE)
+cat("\nNon-successful or singular simulation fits\n")
+print(
+  subset(
+    power$replicate_diagnostics,
+    fit_status != "successful_fit" | singular_fit
+  ),
+  row.names = FALSE
+)
 
 # Global-null calibration uses the same schedule and nuisance assumptions.
 # type1 <- type1_component_swcrt(

@@ -2,7 +2,7 @@ Package: stepwedgepower
 Type: Package
 Title: Simulation-Based Power Evaluation for Stepped-Wedge Cluster
         Randomized Trials
-Version: 0.4.0
+Version: 0.4.1
 Authors@R: c(
     person(given = "Lin (Amanda)", family = "Li", role = c("aut", "cre"),
            email = "amandali14124277@gmail.com"),
@@ -18,10 +18,16 @@ Description: Provides simulation-based power, type I error, and operating-
     Control, A, B, and A+B under arbitrary asynchronous schedules, including
     structurally unobserved cluster-periods, withdrawal, reintroduction,
     wash-in delays, user-defined carryover decay, component main effects, an
-    A-by-B interaction, estimability audits, multiplicity adjustment, and
-    conditional and failure-aware power. The
-    cumulative Control-to-A-to-A+B interface from earlier versions remains
-    available. The design and mixed-effects analysis follow Hussey and Hughes
+    A-by-B interaction, estimability audits, multiplicity adjustment,
+    conditional and failure-aware power, and explicit classification of hard
+    model errors, nonconvergence, non-finite contrasts, singular fits, and
+    successful fits. A batch-aware interface represents classic and batched
+    stepped-wedge designs with delayed cluster initiation, structurally
+    unobserved cluster-periods, and calendar-time, time-on-trial, or separate
+    batch-specific time effects, following Kasza, Bowden, Hooper and Forbes
+    (2022) <doi:10.1002/sim.9438>. The cumulative Control-to-A-to-A+B interface
+    from earlier versions remains available. The design and mixed-effects
+    analysis follow Hussey and Hughes
     (2007) <doi:10.1016/j.cct.2006.05.007>. Intraclass correlations for binary
     outcomes are converted to random-intercept standard deviations on the
     latent scale of the logistic-normal model, as reviewed by Eldridge,

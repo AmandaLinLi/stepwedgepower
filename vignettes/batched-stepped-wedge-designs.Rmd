@@ -1,0 +1,161 @@
+---
+title: "Classic and Batched Stepped-Wedge Designs"
+author: "Amanda Li"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Classic and Batched Stepped-Wedge Designs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+A batched stepped-wedge design (BSWD) allows clusters to begin trial
+participation in batches with staggered initiation times. Consequently, some
+cluster-periods are outside the observation window. A dash means that no
+outcome is observed; it is not a Control observation.
+
+Batch labels may be supplied explicitly or inferred from first observed
+calendar periods. Version 0.4.1 distinguishes calendar time, shared time on
+trial, and separate batch-specific time.
+
+## Exact SWD and BSWD schedules
+
+```{r designs}
+library(stepwedgepower)
+
+swd <- sw_batched_design(
+  c(5L, 5L),
+  rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2"),
+    `Group 2` = c("0", "0", "1", "1+2")
+  ),
+  batch = c("Batch 1", "Batch 1")
+)
+
+bswd <- sw_batched_design(
+  c(2L, 2L, 3L, 3L),
+  rbind(
+    `Group 1` = c("0", "1", "1+2", "1+2", "-"),
+    `Group 2` = c("0", "0", "1", "1+2", "-"),
+    `Group 3` = c("-", "0", "1", "1+2", "1+2"),
+    `Group 4` = c("-", "0", "0", "1", "1+2")
+  ),
+  batch = c("Batch 1", "Batch 1", "Batch 2", "Batch 2")
+)
+
+swd
+bswd
+```
+
+The BSWD has two four-period batches, with the second batch starting one
+calendar period later. The object records calendar time and time on trial.
+
+```{r metadata}
+bswd$batch_start_period
+bswd$batch_delay
+bswd$batch_gap_from_previous
+bswd$time_on_trial
+```
+
+## Assumptions and resources
+
+Because B is not delivered alone, its component coefficient is the incremental
+A+B-versus-A effect when the interaction is omitted.
+
+```{r assumptions}
+assumptions <- sw_batched_assumptions(
+  baseline_prob = 0.15,
+  treatment_or_a = 1.35,
+  treatment_or_b = 1.25,
+  interaction_mode = "none",
+  icc = 0.05,
+  n_per_cluster_period = 25L,
+  time_model = "calendar",
+  time_effects = log(seq(1.00, 1.08, length.out = 5))
+)
+
+rbind(
+  SWD = component_resource_summary(swd, assumptions),
+  BSWD = component_resource_summary(bswd, assumptions)
+)
+```
+
+Both designs contain 40 observed clinic-periods and 1,000 observations. The
+BSWD spans 50 possible clinic-periods, of which 10 are structurally unobserved.
+
+## Audit the three time models
+
+```{r audits}
+contrasts <- c("A_vs_control", "AB_vs_A", "AB_vs_control")
+
+calendar_audit <- audit_batched_design(
+  bswd, assumptions, "calendar", contrasts, include_interaction = FALSE
+)
+trial_time_audit <- audit_batched_design(
+  bswd, assumptions, "time_on_trial", contrasts,
+  include_interaction = FALSE
+)
+separate_audit <- audit_batched_design(
+  bswd, assumptions, "separate", contrasts, include_interaction = FALSE
+)
+
+calendar_audit
+trial_time_audit
+separate_audit
+```
+
+## Simulate and fit one trial
+
+```{r simulate-fit}
+one_trial <- simulate_batched_swcrt(bswd, assumptions, seed = 123)
+one_fit <- fit_batched_model(
+  one_trial,
+  time_model = "calendar",
+  contrasts = contrasts,
+  include_interaction = FALSE,
+  multiplicity = "holm"
+)
+one_fit$contrasts
+```
+
+## Power comparisons
+
+```{r compare, eval=FALSE}
+comparison <- compare_swd_bswd(
+  swd, bswd, assumptions,
+  nsim = 5000,
+  contrasts = contrasts,
+  include_interaction = FALSE,
+  multiplicity = "holm",
+  multiplicity_family = contrasts,
+  nAGQ = 1,
+  n_cores = 4,
+  seed = 2026,
+  warn_on_design = FALSE
+)
+
+comparison$resource_check
+comparison$comparison
+comparison$fit_diagnostics
+
+model_comparison <- compare_batched_time_models(
+  bswd, assumptions,
+  nsim = 5000,
+  contrasts = contrasts,
+  include_interaction = FALSE,
+  multiplicity = "holm",
+  multiplicity_family = contrasts,
+  nAGQ = 1,
+  n_cores = 4,
+  seed = 2026,
+  warn_on_design = FALSE
+)
+model_comparison$comparison
+```
+
+The simulation output retains conditional and failure-aware power, Monte Carlo
+uncertainty, bias, coverage, hard GLMM errors, nonconvergence, non-finite
+contrasts, singular fits, and successful fits.

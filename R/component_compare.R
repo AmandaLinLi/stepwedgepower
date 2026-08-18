@@ -14,7 +14,9 @@
 #'   available.
 #' @inheritParams power_component_swcrt
 #'
-#' @return An object of class `"sw_component_comparison"`.
+#' @return An object of class `"sw_component_comparison"`. The
+#'   `fit_diagnostics` element combines the detailed fit-category counts from
+#'   every candidate design.
 #' @examples
 #' \donttest{
 #' four <- sw_component_design(
@@ -113,6 +115,14 @@ compare_component_designs <- function(
   }))
   rownames(comparison) <- NULL
 
+  fit_diagnostics <- do.call(rbind, lapply(seq_len(n_designs), function(i) {
+    data.frame(
+      design = labels[i], runs[[i]]$fit_diagnostics,
+      stringsAsFactors = FALSE
+    )
+  }))
+  rownames(fit_diagnostics) <- NULL
+
   resource_rows <- lapply(seq_len(n_designs), function(i) {
     component_resource_summary(designs[[i]], assumptions[[i]])
   })
@@ -153,6 +163,7 @@ compare_component_designs <- function(
   structure(
     list(
       comparison = comparison,
+      fit_diagnostics = fit_diagnostics,
       resource_check = resource_check,
       equal_structural_resources = equal_structural_resources,
       equal_observed_cluster_periods = equal_observed_cluster_periods,
@@ -188,5 +199,16 @@ print.sw_component_comparison <- function(x, ...) {
     "design", "test", "conditional", "failure_aware", "evaluable"
   )
   print(display, row.names = FALSE, digits = 3)
+  cat("\nFit diagnostics by design\n")
+  diagnostic_display <- x$fit_diagnostics[, c(
+    "design", "label", "count", "rate"
+  ), drop = FALSE]
+  names(diagnostic_display) <- c("design", "category", "count", "rate")
+  print(diagnostic_display, row.names = FALSE, digits = 3)
+  cat(
+    "  Note: singular fit is a non-exclusive flag and may overlap with ",
+    "successful fit.\n",
+    sep = ""
+  )
   invisible(x)
 }

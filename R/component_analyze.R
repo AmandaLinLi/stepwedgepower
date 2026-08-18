@@ -6,8 +6,8 @@
 #' `cbind(events, n - events) ~ a_effect_weight + b_effect_weight +
 #' ab_effect_weight + factor(period) + (1 | cluster_id)`.
 #'
-#' The standard contrasts are A versus Control, B versus Control, A+B versus
-#' Control, A+B versus A, A+B versus B, and the A-by-B interaction. All contrast
+#' The standard contrasts are A versus Control, B versus Control, B versus A,
+#' A+B versus Control, A+B versus A, A+B versus B, and the A-by-B interaction. All contrast
 #' standard errors use the complete fitted covariance matrix. If `data`
 #' contains an `observed` column, rows marked `FALSE` or `0` are omitted before
 #' outcome validation and fitting.
@@ -35,7 +35,9 @@
 #' @param alpha Two-sided significance level.
 #'
 #' @return A list containing the fitted model, contrast table, adjusted tests,
-#'   and model-fitting diagnostics.
+#'   and model-fitting diagnostics. The diagnostics distinguish a hard GLMM
+#'   error, nonconvergence, converged fits with non-finite requested contrasts,
+#'   singularity, and successful fits.
 #' @examples
 #' \donttest{
 #' state <- rbind(
@@ -187,9 +189,15 @@ fit_component_model <- function(
         rep(NA, length(multiplicity_family)), multiplicity_family
       ),
       joint_success = NA,
+      hard_error = TRUE,
+      fit_status = "hard_glmm_error",
       converged = FALSE,
+      convergence_messages = character(),
+      optimizer_code = NA_character_,
+      nonfinite_contrasts = contrasts,
       singular = NA,
       usable = FALSE,
+      successful = FALSE,
       warnings = unique(captured_warnings),
       error = fit_error,
       multiplicity = multiplicity,
@@ -200,8 +208,9 @@ fit_component_model <- function(
   }
 
   coefficients <- summary(fit)$coefficients
-  convergence_messages <- fit@optinfo$conv$lme4$messages
-  converged <- is.null(convergence_messages)
+  convergence <- .extract_lme4_convergence(fit)
+  convergence_messages <- convergence$messages
+  converged <- convergence$converged
   singular <- tryCatch(lme4::isSingular(fit), error = function(e) NA)
 
   standard_matrix <- .component_contrast_matrix(include_interaction)
@@ -265,7 +274,13 @@ fit_component_model <- function(
   } else {
     NA
   }
-  usable <- converged && all(is.finite(raw_p))
+  nonfinite_contrasts <- names(raw_p)[!is.finite(raw_p)]
+  fit_status <- .classify_analysis_fit(
+    hard_error = FALSE,
+    converged = converged,
+    p_values = raw_p
+  )
+  usable <- identical(fit_status, "successful_fit")
 
   list(
     fit = fit,
@@ -276,10 +291,18 @@ fit_component_model <- function(
     adjusted_p_values = adjusted_p,
     reject_adjusted = reject_adjusted,
     joint_success = joint_success,
+    hard_error = FALSE,
+    fit_status = fit_status,
     converged = converged,
+    convergence_messages = convergence_messages,
+    optimizer_code = convergence$optimizer_code,
+    nonfinite_contrasts = nonfinite_contrasts,
     singular = singular,
     usable = usable,
-    warnings = unique(c(captured_warnings, convergence_messages)),
+    successful = usable,
+    warnings = unique(c(
+      captured_warnings, convergence_messages, convergence$advisory_messages
+    )),
     error = fit_error,
     multiplicity = multiplicity,
     multiplicity_family = multiplicity_family,
