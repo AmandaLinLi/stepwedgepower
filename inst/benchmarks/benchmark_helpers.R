@@ -220,18 +220,43 @@
 
 .sp_bench_status_summary <- function(...) {
   objects <- list(...)
-  data <- do.call(rbind, lapply(objects, function(x) {
-    if (is.null(x$validation) || !nrow(x$validation)) return(NULL)
-    x$validation
-  }))
-  if (is.null(data) || !nrow(data)) {
+
+  # Validation tables for Table 2, Figure 3, Table 3, and Figure 5 contain
+  # artifact-specific columns. Bind only the two fields required for the
+  # cross-artifact summary; base::rbind() otherwise fails when schemas differ.
+  pieces <- lapply(objects, function(x) {
+    validation <- x$validation
+    if (is.null(validation) || !is.data.frame(validation) || !nrow(validation)) {
+      return(NULL)
+    }
+    required <- c("artifact", "pass")
+    missing <- setdiff(required, names(validation))
+    if (length(missing)) {
+      stop(
+        "Benchmark validation table is missing required column(s): ",
+        paste(missing, collapse = ", "),
+        call. = FALSE
+      )
+    }
+    data.frame(
+      artifact = as.character(validation$artifact),
+      pass = as.logical(validation$pass),
+      stringsAsFactors = FALSE
+    )
+  })
+  pieces <- Filter(Negate(is.null), pieces)
+
+  if (!length(pieces)) {
     return(data.frame(
       artifact = character(), evaluated = integer(),
-      passed = integer(), failed = integer(), skipped = integer()
+      passed = integer(), failed = integer(), skipped = integer(),
+      stringsAsFactors = FALSE
     ))
   }
+
+  data <- do.call(rbind, pieces)
   artifacts <- unique(data$artifact)
-  do.call(rbind, lapply(artifacts, function(name) {
+  out <- do.call(rbind, lapply(artifacts, function(name) {
     rows <- data[data$artifact == name, , drop = FALSE]
     data.frame(
       artifact = name,
@@ -242,4 +267,6 @@
       stringsAsFactors = FALSE
     )
   }))
+  rownames(out) <- NULL
+  out
 }
