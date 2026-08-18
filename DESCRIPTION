@@ -18,7 +18,6 @@ Description: Provides simulation-based power, type I error, and operating-
     Control, A, B, and A+B under arbitrary asynchronous schedules, including
     structurally unobserved cluster-periods, withdrawal, reintroduction,
     wash-in delays, user-defined carryover decay, component main effects, an
-<<<<<<< HEAD
     A-by-B interaction, estimability audits, multiplicity adjustment,
     conditional and failure-aware power, and explicit classification of hard
     model errors, nonconvergence, non-finite contrasts, singular fits, and
@@ -29,12 +28,6 @@ Description: Provides simulation-based power, type I error, and operating-
     (2022) <doi:10.1002/sim.9438>. The cumulative Control-to-A-to-A+B interface
     from earlier versions remains available. The design and mixed-effects
     analysis follow Hussey and Hughes
-=======
-    A-by-B interaction, estimability audits, multiplicity adjustment, and
-    conditional and failure-aware power. The
-    cumulative Control-to-A-to-A+B interface from earlier versions remains
-    available. The design and mixed-effects analysis follow Hussey and Hughes
->>>>>>> origin/main
     (2007) <doi:10.1016/j.cct.2006.05.007>. Intraclass correlations for binary
     outcomes are converted to random-intercept standard deviations on the
     latent scale of the logistic-normal model, as reviewed by Eldridge,

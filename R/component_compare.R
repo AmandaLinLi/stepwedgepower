@@ -115,7 +115,6 @@ compare_component_designs <- function(
   }))
   rownames(comparison) <- NULL
 
-<<<<<<< HEAD
   fit_diagnostics <- do.call(rbind, lapply(seq_len(n_designs), function(i) {
     data.frame(
       design = labels[i], runs[[i]]$fit_diagnostics,
@@ -124,8 +123,6 @@ compare_component_designs <- function(
   }))
   rownames(fit_diagnostics) <- NULL
 
-=======
->>>>>>> origin/main
   resource_rows <- lapply(seq_len(n_designs), function(i) {
     component_resource_summary(designs[[i]], assumptions[[i]])
   })

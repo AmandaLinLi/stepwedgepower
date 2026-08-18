@@ -199,10 +199,6 @@ simulate_component_swcrt <- function(design, assumptions, seed = NULL, include_u
   if (!is.null(seed)) set.seed(seed)
   n_seq <- design$n_sequences; n_per <- design$n_periods
   baseline <- .expand_baseline_logit(assumptions$baseline_logit, n_seq, n_per)
-<<<<<<< HEAD
-=======
-  period_effect <- .expand_period_effects(assumptions$period_effects, n_per)
->>>>>>> origin/main
   sequence_period <- .component_sequence_period(design, assumptions)
   sequence_of_cluster <- rep(seq_len(n_seq), times = design$clusters_per_sequence)
   n_clusters <- length(sequence_of_cluster)
@@ -219,7 +215,6 @@ simulate_component_swcrt <- function(design, assumptions, seed = NULL, include_u
   n[obs_idx] <- as.integer(n_obs)
   wa <- sequence_period$a_effect_weight[sp_index]; wb <- sequence_period$b_effect_weight[sp_index]; wab <- sequence_period$ab_effect_weight[sp_index]
   ca <- assumptions$treatment_effect_a * wa; cb <- assumptions$treatment_effect_b * wb; cab <- assumptions$interaction_effect * wab
-<<<<<<< HEAD
   time_effect <- if (inherits(design, "sw_batched_design") &&
                      inherits(assumptions, "sw_batched_assumptions")) {
     .resolve_batched_time_effect_vector(
@@ -230,24 +225,16 @@ simulate_component_swcrt <- function(design, assumptions, seed = NULL, include_u
     .expand_period_effects(assumptions$period_effects, n_per)[period]
   }
   eta <- baseline[baseline_index] + time_effect + random_intercept[cluster_id] + ca + cb + cab
-=======
-  eta <- baseline[baseline_index] + period_effect[period] + random_intercept[cluster_id] + ca + cb + cab
->>>>>>> origin/main
   probability <- stats::plogis(eta)
   events <- rep(NA_integer_, length(probability)); events[obs_idx] <- stats::rbinom(length(obs_idx), n[obs_idx], probability[obs_idx])
   history_columns <- setdiff(names(sequence_period), c("sequence_idx", "sequence", "period"))
   history <- sequence_period[sp_index, history_columns, drop = FALSE]
   out <- data.frame(cluster_id = cluster_id, sequence = design$sequence_names[sequence_idx], sequence_idx = sequence_idx, period = period,
                     history, n = as.integer(n), events = as.integer(events), true_prob = probability,
-<<<<<<< HEAD
                     true_time_effect = time_effect,
                     true_contribution_a = ca, true_contribution_b = cb, true_contribution_ab = cab,
                     stringsAsFactors = FALSE, check.names = FALSE)
   out <- .append_batched_time_columns(out, design)
-=======
-                    true_contribution_a = ca, true_contribution_b = cb, true_contribution_ab = cab,
-                    stringsAsFactors = FALSE, check.names = FALSE)
->>>>>>> origin/main
   out <- out[order(out$cluster_id, out$period), , drop = FALSE]
   if (!include_unobserved) out <- out[out$observed, , drop = FALSE]
   rownames(out) <- NULL
