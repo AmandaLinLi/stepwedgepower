@@ -45,9 +45,9 @@ fit_component_model(
   \item{alpha}{Two-sided significance level.}
 }
 \description{
-Fits the planned mixed model and returns A, B, combined-treatment, incremental, and interaction Wald contrasts with covariance-correct standard errors. If the data contain an \code{observed} column, rows marked false or zero are removed before outcome validation and fitting.
+Fits the planned mixed model and returns A versus Control, B versus Control, B versus A, combined-treatment, incremental, and interaction Wald contrasts with covariance-correct standard errors. If the data contain an \code{observed} column, rows marked false or zero are removed before outcome validation and fitting.
 }
-\value{A list containing the fitted model, contrast table, multiplicity results, and fitting diagnostics.}
+\value{A list containing the fitted model, contrast table, multiplicity results, and fitting diagnostics. The \code{fit_status} field distinguishes \code{hard_glmm_error}, \code{nonconverged_fit}, \code{converged_nonfinite_contrast}, and \code{successful_fit}. Singularity is returned separately in \code{singular}; a singular fit is not automatically classified as unsuccessful. Error, optimizer, convergence-message, and non-finite-contrast details are retained.}
 \examples{
 \donttest{
 state <- rbind(S1 = c(0, 1, 3, 2), S2 = c(0, 2, 3, 3),
