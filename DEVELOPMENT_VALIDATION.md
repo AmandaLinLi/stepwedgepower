@@ -38,3 +38,14 @@ devtools::check_mac_release()
 ```
 
 Build the final CRAN archive locally with `devtools::build()`.
+
+
+## Benchmark module added in 0.4.1
+
+The package now includes a non-exported benchmark suite under
+`inst/benchmarks/` and `vignettes/benchmark-validation.Rmd`. Fast base-R tests
+verify the Figure 3 matrix-inversion values, terminal-delay invariance, Figure
+5 closed-form curves, independent WLS matrix-inversion values, and the
+theoretical crossing point. Table 2 and Table 3 external-software calls are
+optional and are not executed during standard package checks unless explicitly
+requested.

@@ -1,0 +1,5 @@
+item,manuscript_statement,public_code_or_figure,benchmark_decision
+Figure 3 prevalence,Section 5.2.1 states p0 = 0.1 and p1 = 0.3.,The public R code uses p0 = 0.1 and p1 = 0.2; the plotted values agree with p1 = 0.2.,Use p1 = 0.2 for numerical reproduction and record the discrepancy explicitly.
+Figure 3 terminal delay,"The text and plotted figure include the maximal non-overlap delay, for which calendar and separate time coincide.",The public R script as accessed omits the final no-overlap point from each stored power vector.,"Include delays 0 through the number of periods, so the terminal point is present and equals the no-delay power."
+Table 3 wording,The caption calls the entries simulated power results.,The public code calculates them with swdpwr's marginal GEE power routine.,"Describe them as swdpwr GEE power calculations, while retaining the manuscript's numerical reference values."
+Table 2 Scenario 1 swdpwr argument,The scenario uses marginal variance 1 for the continuous outcome.,"The public script supplies sigma = 1, relying on partial argument matching to sigma2.",Use the explicit current argument name sigma2 = 1.

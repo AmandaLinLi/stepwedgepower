@@ -289,14 +289,42 @@ The installed demonstration is available at:
 system.file("examples", "demo_async_A_AB.R", package = "stepwedgepower")
 ```
 
+## Manuscript benchmark and validation suite
+
+Version 0.4.1 includes a non-exported reproducibility module under
+`inst/benchmarks/`. It covers the software comparison in Table 2, the
+calendar-time delay curves in Figure 3, the separate-time GEE grid in Table 3,
+and the limited-cluster variance curves in Figure 5 of Lin et al. (2026).
+Reference values, source notes, tolerances, package versions, and session
+information are saved with the results.
+
+```r
+benchmark_dir <- system.file("benchmarks", package = "stepwedgepower")
+
+Sys.setenv(
+  STEPWEDGEPOWER_RUN_EXTERNAL = "true",
+  STEPWEDGEPOWER_BENCHMARK_STRICT = "true",
+  STEPWEDGEPOWER_BENCHMARK_OUTPUT =
+    file.path(getwd(), "stepwedgepower-benchmark-results")
+)
+
+source(file.path(benchmark_dir, "run_all.R"))
+```
+
+`swCRTdesign` and `swdpwr` are optional and are used only for the external
+Table 2 and Table 3 comparisons. Figure 3 uses an independent base-R matrix
+calculation. Figure 5 is checked both from the Appendix C closed forms and by
+independent WLS matrix inversion. None of the benchmark helpers is exported.
+
 ## Vignettes
 
 ```r
 vignette("stepped-wedge-design", package = "stepwedgepower")
 vignette("component-four-state", package = "stepwedgepower")
-vignette("incomplete-block-designs", package = "stepwedgepower")
+vignette("batched-stepped-wedge-designs", package = "stepwedgepower")
 vignette("asynchronous-a-ab", package = "stepwedgepower")
 vignette("lpa-case-study", package = "stepwedgepower")
+vignette("benchmark-validation", package = "stepwedgepower")
 ```
 
 The Lp(a) functions are retained as application wrappers over the package's

@@ -1,0 +1,5 @@
+artifact,script,reference,primary_method,optional_packages,default_tolerance
+Table 2,table2_software_comparison.R,reference/table2_reference.csv,swCRTdesign and swdpwr calls from the authors' public code,swCRTdesign;swdpwr,0.002 after rounding to 3 decimals
+Figure 3,figure3_calendar_delay.R,reference/figure3_reference.csv,independent matrix inversion under the pooled-variance LMM approximation,,1e-10
+Table 3,table3_separate_time_grid.R,reference/table3_reference.csv,swdpwr marginal GEE with logit link and separate-time equivalence,swdpwr,0.002 after rounding to 3 decimals
+Figure 5,figure5_limited_clusters.R,reference/figure5_reference.csv,closed-form scaled variance expressions plus independent WLS matrix inversion,,1e-12

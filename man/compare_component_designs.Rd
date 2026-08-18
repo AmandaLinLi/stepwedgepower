@@ -33,8 +33,8 @@ compare_component_designs(
   \item{x}{An \code{sw_component_comparison} object.}
   \item{...}{Unused.}
 }
-\description{Runs the component power engine for multiple schedules and reports operating characteristics and resource totals side by side. Calendar and observed cluster-period totals are reported separately so complete and block stepped-wedge designs can be compared under equal observed resources.}
-\value{An object of class \code{sw_component_comparison}.}
+\description{Runs the component power engine for multiple schedules and reports operating characteristics and resource totals side by side. Calendar and observed cluster-period totals are reported separately so complete and batched stepped-wedge designs can be compared under equal observed resources.}
+\value{An object of class \code{sw_component_comparison}. The \code{fit_diagnostics} element combines the five fit-category counts and rates across designs.}
 \examples{
 \donttest{
 state <- rbind(S1 = c(0, 1, 3, 2), S2 = c(0, 2, 3, 3),

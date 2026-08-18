@@ -40,7 +40,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Imports: lme4, lifecycle, graphics, grDevices, stats, parallel, utils
-Suggests: testthat (>= 3.0.0), knitr, rmarkdown, swdpwr
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, swCRTdesign, swdpwr
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Config/roxygen2/version: 7.3.2
