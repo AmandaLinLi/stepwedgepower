@@ -12,18 +12,28 @@ grids, and validation tools for stepped-wedge cluster randomized trials.
 The package supports asynchronous cumulative-intervention schedules and a
 general component-based engine for Control, A, B, and A+B. The component
 engine permits arbitrary withdrawal and reintroduction schedules,
-structurally unobserved cluster-periods, wash-in, user-defined carryover decay, an A-by-B interaction, estimability audits,
-multiplicity-aware contrasts, failure-aware operating characteristics, and
-explicit model-fitting outcome diagnostics. A batch-aware interface supports
-classic and batched stepped-wedge designs with delayed cluster initiation and
+structurally unobserved cluster-periods, wash-in, user-defined carryover
+decay, an A-by-B interaction, estimability audits, multiplicity-aware
+contrasts, failure-aware operating characteristics, and explicit
+model-fitting outcome diagnostics. A batch-aware interface supports classic
+and batched stepped-wedge designs with delayed cluster initiation and
 calendar-time, time-on-trial, or separate batch-specific time effects.
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/AmandaLinLi/stepwedgepower}
+  \item Report bugs at \url{https://github.com/AmandaLinLi/stepwedgepower/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Lin (Amanda) Li \email{amandali14124277@gmail.com}
 
 Authors:
 \itemize{
-  \item Florin Vaida (PhD)
+  \item Lin (Amanda) Li \email{amandali14124277@gmail.com}
+  \item Florin Vaida (degree: PhD)
 }
 
 }

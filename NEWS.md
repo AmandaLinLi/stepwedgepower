@@ -1,5 +1,32 @@
 # stepwedgepower 0.4.1
 
+## CRAN hardening
+* Hardened parallel execution for unavailable core counts and CRAN's two-core check limit.
+* Preserved the caller's complete RNG kind and `.Random.seed` across seeded simulations.
+* Replaced duplicated grid-parallel code with the common parallel helper.
+* Added deterministic tests for parallel RNG streams, RNG restoration, and core limits.
+* Normalized benchmark reference files to UTF-8/LF and excluded the archival one-off analysis script from CRAN builds.
+
+* Fixed the benchmark-suite summary so artifact-specific validation tables with different columns are combined safely.
+## Benchmark and validation module
+* Added a non-exported benchmark suite under `inst/benchmarks/` and a
+  reproducible `vignette("benchmark-validation")`.
+* The suite reproduces the manuscript reference values and calculations for
+  Table 2, Figure 3, Table 3, and Figure 5 in Lin et al. (2026), with
+  machine-readable reference values, prespecified tolerances, package-version
+  metadata, `sessionInfo()`, and strict or non-strict execution modes.
+* Table 2 reruns `swCRTdesign` and `swdpwr` when installed, while retaining PASS
+  and Shiny CRT Calculator values as reference-only comparisons. Table 3
+  reruns the marginal GEE grid in `swdpwr`.
+* Figure 3 uses an independent base-R matrix-inversion implementation and
+  includes the maximal non-overlap delay. Figure 5 evaluates the Appendix C
+  closed-form scaled-variance expressions and verifies them independently by
+  WLS matrix inversion for non-boundary ICC values.
+* Source inconsistencies are documented rather than silently reconciled,
+  including the Figure 3 treatment-prevalence discrepancy between the
+  manuscript prose and public code. No benchmark helper is exported, so the
+  public API is unchanged.
+
 ## Batched stepped-wedge terminology and design objects
 * Replaced the provisional term "block stepped-wedge design" with the standard
   term **batched stepped-wedge design (BSWD)**. A BSWD is represented as a

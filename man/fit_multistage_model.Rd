@@ -62,7 +62,12 @@ rejection indicators.}
 separately and is not included in this adjustment family.}
 }
 \value{
-A list containing the fitted model, a contrast table, raw and adjusted p-values, detailed fit status, convergence and singularity diagnostics, captured warnings, and a joint-success indicator for the A and B component tests. The \code{fit_status} field distinguishes hard GLMM errors, nonconvergence, converged fits with non-finite contrasts, and successful fits. Singularity is reported separately.
+A list containing the fitted model, a contrast table, raw and
+adjusted p-values, detailed fit status, convergence and singularity
+diagnostics, captured warnings, and a joint-success indicator for the A
+and B component tests. Fit status distinguishes hard GLMM errors,
+nonconvergence, converged fits with non-finite contrasts, and successful
+fits; singularity is reported separately.
 }
 \description{
 Fits a binomial cluster-random-intercept model with separate indicators for

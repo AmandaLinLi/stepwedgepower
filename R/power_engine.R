@@ -195,16 +195,22 @@ plot.sw_power <- function(x, ...) {
     return(.par_lapply(seq_len(nsim), fun, n_cores))
   }
 
-  # Pre-compute one RNG stream per replicate from the user's seed.
-  old_kind <- RNGkind()[1]
-  old_seed <- if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
-    get(".Random.seed", envir = globalenv())
+  # Pre-compute one RNG stream per replicate from the user's seed while
+  # restoring the caller's complete RNG configuration and state on exit.
+  old_kind <- RNGkind()
+  had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  old_seed <- if (had_seed) {
+    get(".Random.seed", envir = globalenv(), inherits = FALSE)
   } else {
     NULL
   }
   on.exit({
-    RNGkind(old_kind)
-    if (!is.null(old_seed)) assign(".Random.seed", old_seed, envir = globalenv())
+    do.call(RNGkind, as.list(old_kind))
+    if (had_seed) {
+      assign(".Random.seed", old_seed, envir = globalenv())
+    } else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      rm(".Random.seed", envir = globalenv())
+    }
   }, add = TRUE)
 
   RNGkind("L'Ecuyer-CMRG")
@@ -228,16 +234,23 @@ plot.sw_power <- function(x, ...) {
 }
 
 .par_lapply <- function(x, fun, n_cores) {
-  n_cores <- min(n_cores, length(x))
-  available <- parallel::detectCores(logical = FALSE)
-  if (!is.na(available)) n_cores <- min(n_cores, available)
+  n_cores <- .resolve_n_cores(n_cores, length(x))
   if (n_cores <= 1L) return(lapply(x, fun))
 
   if (.Platform$OS.type != "windows") {
-    return(parallel::mclapply(x, fun, mc.cores = n_cores))
+    return(parallel::mclapply(
+      x, fun, mc.cores = n_cores, mc.preschedule = TRUE
+    ))
   }
+
   cl <- parallel::makeCluster(n_cores)
   on.exit(parallel::stopCluster(cl), add = TRUE)
-  parallel::clusterEvalQ(cl, requireNamespace("stepwedgepower", quietly = TRUE))
+  loaded <- unlist(parallel::clusterEvalQ(
+    cl, requireNamespace("stepwedgepower", quietly = TRUE)
+  ))
+  if (!all(loaded)) {
+    stop("Could not load the stepwedgepower namespace on every worker.",
+         call. = FALSE)
+  }
   parallel::parLapply(cl, x, fun)
 }
