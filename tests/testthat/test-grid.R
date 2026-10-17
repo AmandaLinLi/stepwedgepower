@@ -36,17 +36,55 @@ test_that("power_grid rejects unknown parameters", {
                "unknown parameter")
 })
 
-test_that("results are reproducible regardless of core count", {
-  d <- sw_design(clusters_per_sequence = c(4, 4, 4, 4),
-                 crossover_period = c(2, 3, 4, 5), n_periods = 5)
-  a <- sw_assumptions(baseline_prob = 0.1, treatment_or = 2, icc = 0.05,
-                      n_per_cluster_period = 20)
-  serial <- power_swcrt(d, a, nsim = 6, seed = 42, n_cores = 1)
-  # Two cores must reproduce the serial run exactly; a power estimate that
-  # moves when you add cores is not usable.
-  parallel_run <- power_swcrt(d, a, nsim = 6, seed = 42, n_cores = 2)
-  expect_equal(serial$p_values, parallel_run$p_values)
-  expect_equal(serial$power, parallel_run$power)
+test_that("replicate RNG is reproducible regardless of core count", {
+  available <- suppressWarnings(parallel::detectCores(logical = FALSE))
+  skip_if(is.na(available) || available < 2L)
+
+  draw <- function(i) stats::rnorm(3L)
+  serial <- stepwedgepower:::.simulate_replicates(
+    draw, nsim = 6L, n_cores = 1L, seed = 42
+  )
+  parallel_run <- stepwedgepower:::.simulate_replicates(
+    draw, nsim = 6L, n_cores = 2L, seed = 42
+  )
+  expect_equal(serial, parallel_run, tolerance = 0)
+})
+
+test_that("simulation helpers restore the caller RNG state", {
+  old_kind <- RNGkind()
+  had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+  old_seed <- if (had_seed) get(".Random.seed", envir = globalenv()) else NULL
+  on.exit({
+    do.call(RNGkind, as.list(old_kind))
+    if (had_seed) {
+      assign(".Random.seed", old_seed, envir = globalenv())
+    } else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      rm(".Random.seed", envir = globalenv())
+    }
+  }, add = TRUE)
+
+  RNGkind("Mersenne-Twister", "Inversion", "Rejection")
+  set.seed(123)
+  
+  before <- .Random.seed
+  before_kind <- RNGkind()
+  invisible(stepwedgepower:::.simulate_replicates(
+    function(i) stats::runif(1L), nsim = 4L, n_cores = 1L, seed = 99
+  ))
+  expect_identical(.Random.seed, before)
+  expect_identical(RNGkind(), before_kind)
+})
+
+test_that("core resolution handles unavailable detection and CRAN limits", {
+  old <- Sys.getenv("_R_CHECK_LIMIT_CORES_", unset = NA_character_)
+  on.exit({
+    if (is.na(old)) Sys.unsetenv("_R_CHECK_LIMIT_CORES_") else
+      Sys.setenv(`_R_CHECK_LIMIT_CORES_` = old)
+  }, add = TRUE)
+
+  Sys.setenv(`_R_CHECK_LIMIT_CORES_` = "TRUE")
+  expect_lte(stepwedgepower:::.resolve_n_cores(8L, 20L), 2L)
+  expect_equal(stepwedgepower:::.resolve_n_cores(8L, 1L), 1L)
 })
 
 test_that("the same seed gives the same answer twice", {

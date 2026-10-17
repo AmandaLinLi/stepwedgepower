@@ -16,8 +16,8 @@ test_that("batched design records delayed initiation and time on trial", {
   expect_equal(unname(design$batch_gap_from_previous), c(0L, 1L))
   expect_equal(design$n_observed_cluster_periods, 40L)
   expect_equal(design$n_missing_cluster_periods, 10L)
-  expect_equal(design$time_on_trial[1, ], 1:5)
-  expect_equal(design$time_on_trial[3, ], c(NA, 1:4))
+  expect_equal(unname(design$time_on_trial[1, ]), 1:5)
+  expect_equal(unname(design$time_on_trial[3, ]), c(NA, 1:4))
 })
 
 test_that("batch labels can be inferred from first observed period", {
@@ -76,7 +76,7 @@ test_that("simulation adds batch and relative-time columns", {
   assumptions <- sw_batched_assumptions(
     baseline_prob = 0.1, treatment_or_a = 1.2,
     cluster_sd = 0, time_model = "time_on_trial",
-    time_effects = c(0, 0.2), n_per_cluster_period = 10
+    time_effects = c(0, 0.2, 0.4), n_per_cluster_period = 10
   )
   trial <- simulate_batched_swcrt(design, assumptions, seed = 1)
   expect_true(all(c(
@@ -84,6 +84,23 @@ test_that("simulation adds batch and relative-time columns", {
   ) %in% names(trial)))
   expect_equal(trial$time_on_trial[trial$sequence == "B2"], c(1L, 2L))
   expect_equal(trial$true_time_effect[trial$sequence == "B2"], c(0, 0.2))
+})
+
+test_that("time-on-trial profiles must cover the longest observed local period", {
+  design <- sw_batched_design(
+    c(1L, 1L),
+    rbind(B1 = c("0", "1", "1"), B2 = c("-", "0", "1")),
+    batch = c("Batch 1", "Batch 2")
+  )
+  assumptions <- sw_batched_assumptions(
+    baseline_prob = 0.1, treatment_or_a = 1.2,
+    cluster_sd = 0, time_model = "time_on_trial",
+    time_effects = c(0, 0.2), n_per_cluster_period = 10
+  )
+  expect_error(
+    simulate_batched_swcrt(design, assumptions, seed = 1),
+    "shorter than the required time index"
+  )
 })
 
 test_that("separate profiles cover observed local periods only", {
