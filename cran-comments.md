@@ -16,3 +16,4 @@ This is a substantial update from CRAN version 0.1.3. It preserves the existing 
 ## Notes
 
 Optional comparisons with `swCRTdesign` and `swdpwr` are disabled during routine examples and vignette builds. They are available through the installed benchmark suite when explicitly requested.
+The words flagged by the incoming spell check are author surnames (Bowden and Kasza) and established statistical terms (estimability and nonconvergence).

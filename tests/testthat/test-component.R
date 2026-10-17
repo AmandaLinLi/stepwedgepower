@@ -78,7 +78,7 @@ test_that("four-state audit supports the standard contrasts", {
   audit <- audit_component_design(d, a)
   expect_true(audit$full_rank)
   expect_true(audit$all_requested_estimable)
-  expect_equal(nrow(audit$estimability), 6)
+  expect_equal(nrow(audit$estimability), 7)
 })
 
 test_that("component model returns all standard contrasts", {
@@ -106,7 +106,7 @@ test_that("component model returns all standard contrasts", {
   expect_true(isTRUE(fit$converged))
   expect_true(all(is.finite(fit$contrasts$estimate)))
   expect_true(all(c(
-    "A_vs_control", "B_vs_control", "AB_vs_control",
+    "A_vs_control", "B_vs_control", "B_vs_A", "AB_vs_control",
     "AB_vs_A", "AB_vs_B", "interaction"
   ) %in% fit$contrasts$contrast))
   expect_true(all(c("estimate", "std_error", "p_value", "p_adjusted") %in%
@@ -163,8 +163,9 @@ test_that("interaction mode and analysis specification are consistent", {
     c(2, 2),
     state = rbind(c(0, 1, 3, 2), c(0, 2, 3, 1))
   )
-  no_interaction <- expect_warning(
-    sw_component_assumptions(
+  no_interaction <- NULL
+  expect_warning(
+    no_interaction <- sw_component_assumptions(
       baseline_prob = 0.2,
       treatment_or_a = 1.3,
       treatment_or_b = 1.2,
@@ -334,7 +335,10 @@ test_that("incomplete design audit uses observed cells", {
   expect_true(audit$all_requested_estimable)
   expect_equal(audit$observed_cluster_periods, 40L)
   expect_equal(audit$missing_cluster_periods, 10L)
-  expect_equal(audit$observed_sequences_per_period, c(2L, 4L, 4L, 4L, 2L))
+  expect_equal(
+    unname(audit$observed_sequences_per_period),
+    c(2L, 4L, 4L, 4L, 2L)
+  )
 })
 
 test_that("fit diagnostic categories are explicit and internally consistent", {
